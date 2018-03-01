@@ -17,7 +17,8 @@
 #>
 Param(
     [parameter(Mandatory=$true)]$CKLDirectory,
-    [parameter(Mandatory=$true)]$SavePath
+    [parameter(Mandatory=$true)]$SavePath,
+    [int]$DaysOut=120
 )
 #New Comment
 class POAMItem {
@@ -31,7 +32,6 @@ class POAMItem {
     [string]$TgtDate
     [string]$AssetName
     [string]$STIG
-    [int]$DaysOut=120
     #[int]$Count
 }
 
