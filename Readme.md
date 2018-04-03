@@ -80,9 +80,26 @@ Get-StigInfoAttribute -CKLData $CKLData -Attribute "Version"
 ```
 
 ## Get-StigMetrics 
- Returns a complex object of metrics on the statuses of the checks.
+ Returns a complex object of metrics on the statuses of the checks in the specified directory.
 ```
 Get-StigMetrics -CKLDirectory "C:\CKLS\"
+```
+### Return object format
+```
+This is an example showing the format of this function's output. This function will display different views of the same data.
+@{
+   IndividualVulnScores=@(
+      [PSCustomObject]@{NotAFinding=1;Open=0;NotReviewed=0;NotApplicable=0;VulnID="V-00000"},
+      [PSCustomObject]@{NotAFinding=0;Open=1;NotReviewed=0;NotApplicable=0;VulnID="V-00001"},
+      [PSCustomObject]@{NotAFinding=0;Open=0;NotReviewed=0;NotApplicable=1;VulnID="V-00002"}
+   );
+   CategoryScores=@{
+      Cat1=[PSCustomObject]@{Total=200; NotApplicable=50; NotReviewed=50; Open=50; NotAFinding=50;UniqueTotal=200};
+      Cat2=[PSCustomObject]@{Total=200; NotApplicable=50; NotReviewed=50; Open=50; NotAFinding=50;UniqueTotal=200};
+      Cat3=[PSCustomObject]@{Total=200; NotApplicable=50; NotReviewed=50; Open=50; NotAFinding=50;UniqueTotal=200};
+   };
+   TotalFindingScores=[PSCustomObject]@{Total=200; NotApplicable=50; NotReviewed=50; Open=50; NotAFinding=50}
+}
 ```
 
 ## Get-VulnCheckResult 
