@@ -59,6 +59,17 @@ Attempts to convert a checklist in 1.x version to a compatible 2.6 version check
 "Convert-ToNewCKLVersion.ps1" -Source 'C:\CKLs\MyChecklist.ckl' -Destination 'C:\CKLs\UpgradedMyChecklist.ckl'
 ```
 
+### ContinuousSTIG.ps1
+This script will compare a directory containing CKL files with the latest STIG library and email a report on CKL files and checks that need to be re-evaluated. The intent is to have this run on a monthly schedule to ensure awareness of, and compliance with, STIGs as they are updated. As a brief overview, this script will:
+* Prepare a staging directory
+* Attempt to download the latest STIG library (NON-FOUO)
+* Extract it to the staging directory and all STIGs within it
+* Loop through the newly downloaded STIGs, and the user's CKL files comparing them
+* Email any noted differences to the specified users
+```
+"ContinuousSTIG.ps1" -CKLDirectory "\\MyShare\MyChecklists" -EmailServer "MySMTPServer" -EmailRecipients @("myadmin@mydomain.com", "mytest@test.com") -EmailFrom "STIGReport@mydomain.com"
+```
+
 # Module Functions
 
 ## Export-StigCKL 
@@ -202,4 +213,44 @@ Set-VulnCheckResultFromRegistry -CKLData $CKLData -RegKeyPath "HKLM:\SOFTWARE\CO
  Sets a vuln's finding attribute (Status, Comments, Details, etc)
 ```
 Set-VulnFindingAttribute -CKLData $CKLData -VulnID "V-1111" -Attribute "COMMENTS" -Value "This was checked by script"
+```
+
+## Get-CheckListInfo
+Gets general info from the checklist (Release, Title, Description)
+```
+Get-CheckListInfo -CKLData $CKLData
+```
+### Output Format
+```
+[PSObject]@{Title="";Description="";Release="";}
+```
+
+## Get-XCCDFInfo
+Gets general info from the xccdf (Release, Title, Description)
+```
+Get-XCCDFInfo -XCCDF $XCCDFData
+```
+### Output Format
+```
+[PSObject]@{Title="";Description="";Release="";}
+```
+
+## Get-XCCDFVulnInformation
+Returns an array of the vulns in the xccdf file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
+```
+Get-XCCDFVulnInformation -XCCDF $XCCDFData
+```
+### Output Format
+```
+@{ID="";Title="";Version="";Description="";FixText="";CheckText=""}
+```
+
+## Get-CKLVulnInformation
+Returns an array of the vulns in the CKL file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
+```
+Get-CKLVulnInformation -CKLData $CKLData
+```
+### Output Format
+```
+@{ID="";Title="";Version="";Description="";FixText="";CheckText=""}
 ```

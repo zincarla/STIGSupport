@@ -46,6 +46,23 @@ function Get-StigInfoAttribute
 
 <#
 .SYNOPSIS
+    Gets general info from the checklist (Release, Title, Description)
+
+.PARAMETER CKLData
+    CKL data as loaded from the Import-StigCKL
+  
+.EXAMPLE
+    Get-CheckListInfo -CKLData $CKLData
+#>
+function Get-CheckListInfo {
+    Param([Alias("XMLData")][Parameter(Mandatory=$true,ValueFromPipeline = $true)][XML]$CKLData)
+    return (New-Object -TypeName PSObject -Property @{Title=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "title");
+                                                      Description=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "description");
+                                                      Release=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "releaseinfo")});
+}
+
+<#
+.SYNOPSIS
     Gets a vuln's informational attribute
 
 .DESCRIPTION
@@ -106,17 +123,17 @@ function Get-VulnInfoAttribute
     if ($VulnID -ne $null )
     {
         #Grab attribute by VulnID
-        $ToReturn = ((Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.STIG_DATA | 
-            Where-Object {$_.VULN_ATTRIBUTE -eq $Attribute}).ATTRIBUTE_DATA
+        <#$ToReturn = ((Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.STIG_DATA | 
+            Where-Object {$_.VULN_ATTRIBUTE -eq $Attribute}).ATTRIBUTE_DATA#>
+        #Waaay faster, StopWatch test showed 7 seconds, versus previous 30 seconds for 1000 runs.
+        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
     }
     elseif ($RuleID -ne $null)
     {
         #If rule was set, grab it by the rule
-        $ToReturn = ((Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_ID' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.STIG_DATA | 
-            Where-Object {$_.VULN_ATTRIBUTE -eq $Attribute}).ATTRIBUTE_DATA
+        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_ID' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
         if ($ToReturn -eq $null) {
-            $ToReturn = ((Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_Ver' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.STIG_DATA | 
-            Where-Object {$_.VULN_ATTRIBUTE -eq $Attribute}).ATTRIBUTE_DATA
+            $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_Ver' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
         }
     }
     else
@@ -478,7 +495,7 @@ function Set-VulnCheckResult
 
 <#
 .SYNOPSIS
-    Gets the status of a single vuln check, or an array of the statys of all vuln checks in a CKL
+    Gets the status of a single vuln check, or an array of the status of all vuln checks in a CKL
 
 .PARAMETER CKLData
     Data as return from the Import-StigCKL
@@ -531,6 +548,35 @@ function Get-VulnCheckResult
         }
         return $ToReturn
     }
+}
+
+<#
+.SYNOPSIS
+    Returns an array of the vulns in the CKL file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
+
+.PARAMETER CKLData
+    CKL data as loaded from the Import-StigCKL
+  
+.EXAMPLE
+    Get-CKLVulnInformation -CKLData $CKLData
+#>
+function Get-CKLVulnInformation
+{
+    Param
+    (
+        [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData
+    )
+    $Results = @()
+    $VulnIDs = Get-VulnIDs -CKLData $CKLData
+    foreach ($VulnID in $VulnIDs) {
+        $Description = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Vuln_Discuss
+        $Title = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Rule_Title
+        $Version = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Rule_Ver
+        $FixText = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Fix_Text
+        $CheckText = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Check_Content
+        $Results += New-Object -TypeName PSObject -Property @{ID=$VulnID;Title=$Title;Version=$Version;Description=$Description;FixText=$FixText;CheckText=$CheckText}
+    }
+    return $Results
 }
 
 <#
@@ -1054,7 +1100,54 @@ function Get-XCCDFHostData
     #Return host info
     return (New-Object -TypeName PSObject -Property @{HostName=$HostName;HostIP=$HostIP;HostMac=$HostMAC;HostFQDN=$HostFQDN})
 }
+
+<#
+.SYNOPSIS
+    Gets general info from the XCCDF (Release, Title, Description)
+
+.PARAMETER XCCDF
+    XCCDF data as loaded from the Import-XCCDF
+  
+.EXAMPLE
+    Get-XCCDFInfo -XCCDF $XCCDFData
+#>
+function Get-XCCDFInfo
+{
+    Param([Parameter(Mandatory=$true)][xml]$XCCDF)
+    $Version = ($XCCDF.Benchmark.'plain-text' | Where-Object {$_.id -eq 'release-info'}).'#text'
+    return (New-Object -TypeName PSObject -Property @{Title=$XCCDF.Benchmark.title;Description=$XCCDF.Benchmark.description;Release=$Version})
+}
+
+<#
+.SYNOPSIS
+    Returns an array of the vulns in the xccdf file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
+
+.PARAMETER XCCDF
+    XCCDF data as loaded from the Import-XCCDF
+  
+.EXAMPLE
+    Get-XCCDFVulnInformation -XCCDF $XCCDFData
+#>
+function Get-XCCDFVulnInformation {
+    Param([Parameter(Mandatory=$true)][xml]$XCCDF)
+    $Results = @()
+    $Groups = $XCCDF.Benchmark.Group
+    foreach ($Group in $Groups) {
+        $Description = $Group.Rule.description;
+        #Description is weird, it is like further XML, but encoded and not as seperate elements. idk, but this regex will extract what we want out of the mess
+        if ($Description -match "<VulnDiscussion\>([\w\W]*)</VulnDiscussion>") {
+            $Description = $Matches[1]
+        }
+        $Results += New-Object -TypeName PSObject -Property @{ID=$Group.id;Title=$Group.Rule.Title;Version=$Group.Rule.Version;Description=$Description;FixText=$Group.Rule.fixtext.'#text';CheckText=$Group.Rule.check.'check-content'}
+    }
+    return $Results
+}
 #endregion
 
 #Export members
-Export-ModuleMember -Function Get-VulnInfoAttribute, Set-StigDataAttribute, Get-VulnFindingAttribute, Set-VulnFindingAttribute, Get-VulnIDs, Get-StigAttributeList, Set-VulnCheckResult, Get-VulnCheckResult, Import-StigCKL, Export-StigCKL, Repair-StigCKL, Get-CKLHostData, Set-VulnCheckResultFromRegistry, Set-CKLHostData, Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute
+Export-ModuleMember -Function   Get-VulnInfoAttribute, Set-StigDataAttribute, Get-VulnFindingAttribute, Set-VulnFindingAttribute, 
+                                Get-VulnIDs, Get-StigAttributeList, Set-VulnCheckResult, Get-VulnCheckResult, Import-StigCKL, 
+                                Export-StigCKL, Repair-StigCKL, Get-CKLHostData, Set-VulnCheckResultFromRegistry, Set-CKLHostData, 
+                                Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, 
+                                Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute, Get-XCCDFInfo, Get-XCCDFVulnInformation, 
+                                Get-CheckListInfo, Get-CKLVulnInformation;
