@@ -40,7 +40,6 @@ function Get-StigInfoAttribute
     {
         Write-Error "Specified attribute ($Attribute) was not found"
     }
-    #Return the result
     return $ToReturn
 }
 
@@ -1090,15 +1089,16 @@ function Get-XCCDFHostData
 {
     Param([Parameter(Mandatory=$true)][xml]$XCCDF)
 
-    #Pre file variables
+    #Pre fill variables
     $HostName, $HostIP, $HostMAC, $HostGUID, $HostFQDN = ""
     #Load info
     $HostName = $XCCDF.Benchmark.TestResult.target
     $HostIP = (@()+$XCCDF.Benchmark.TestResult.'target-address')[0]
     $HostMAC = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:mac"}).'#text')[0]
     $HostFQDN = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:fqdn"}).'#text')[0]
+    $HostGUID = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:guid"}).'#text')[0]
     #Return host info
-    return (New-Object -TypeName PSObject -Property @{HostName=$HostName;HostIP=$HostIP;HostMac=$HostMAC;HostFQDN=$HostFQDN})
+    return (New-Object -TypeName PSObject -Property @{HostName=$HostName;HostIP=$HostIP;HostMac=$HostMAC;HostFQDN=$HostFQDN;HostGUID=$HostGUID})
 }
 
 <#

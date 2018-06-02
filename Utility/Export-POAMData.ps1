@@ -35,7 +35,6 @@ class POAMItem {
     #[int]$Count
 }
 
-
 $CKLs = @()
 $STIGData = @()
 
@@ -47,7 +46,9 @@ if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -l
 }
 
 $CKLs = (Get-ChildItem -Recurse -Path $CKLDirectory -Filter "*.ckl" -ErrorAction SilentlyContinue)
-
+Write-Progress -Activity "Processing CKLs" -PercentComplete 0
+#To keep track of progress
+$I=0
 foreach($CKL in $CKLs) {
     #Load the CKL
     $CKLData = Import-StigCKL -Path $CKL.FullName
@@ -57,13 +58,15 @@ foreach($CKL in $CKLs) {
     $STIGs = Get-VulnCheckResult -XMLData $CKLData
     $Asset = $HostData.HostName
     foreach($STIG in $STIGs) {
+        #If stig is open
         if($STIG.Status -eq "Open" -or $STIG.Status -eq "Not_Reviewed" -or $STIG.Status -eq $null) {
-            Write-Host "$STIG.VulnID is Identified as non-compliant"
+            Write-Host "$($STIG.VulnID) is Identified as non-compliant"
             $tempDate = (Get-Date).AddDays($DaysOut).ToFileTime()
             $tgtDate = [datetime]::FromFileTime($tempDate).ToString('MM/d/y')
             $ToAdd = New-Object POAMItem -Property @{RuleTitle="";Category="";VulnID=$STIG.VulnID;STIGID="";POAM="POA&M";Source="Manual Inspection";Resources="";TgtDate="";AssetName="";STIG=""}
             $ToAdd.RuleTitle = Get-VulnInfoAttribute -XMLData $CKLData -VulnID $STIG.VulnID -Attribute "Rule_Title"
             $Severity = Get-VulnInfoAttribute -XMLData $CKLData -VulnID $STIG.VulnID -Attribute Severity
+            #Convert severity from CKL's format to CAT
             if($Severity -eq "low") {
                 $Cat = "CAT III"
             } elseif ($Severity -eq "medium") {
@@ -81,6 +84,9 @@ foreach($CKL in $CKLs) {
             Write-Host "Skipping $($STIG.VulnID)"
         }
     }
+    $I++
+    Write-Progress -Activity "Processing CKLs" -PercentComplete (($I/$CKLs.Length)*100)
 }
 
 $STIGData | Export-Csv -Path $SavePath -NoTypeInformation
+Write-Progress -Activity "Processing CKLs" -PercentComplete 100 -Completed
