@@ -638,7 +638,7 @@ function Export-StigCKL
 
 <#
 .SYNOPSIS
-    Opens and resaves a CKL, may fix formatting issues
+    Opens and re-saves a CKL, may fix formatting issues
 
 .PARAMETER Path
     Full path to the CKL file
@@ -668,7 +668,7 @@ function Repair-StigCKL
 function Get-CKLHostData
 {
     Param([Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData)
-    #Return PSOjbect of the host info
+    #Return PSObject of the host info
     return New-Object -TypeName PSObject -Property @{HostName=$CKLData.CHECKLIST.ASSET.HOST_NAME; HostIP=$CKLData.CHECKLIST.ASSET.HOST_IP;
         HostMAC=$CKLData.CHECKLIST.ASSET.HOST_MAC;HostGUID=$CKLData.CHECKLIST.ASSET.HOST_GUID;HostFQDN=$CKLData.CHECKLIST.ASSET.HOST_FQDN}
 }
@@ -720,7 +720,7 @@ function Set-VulnCheckResultFromRegistry
         #Check if the property matches required value
         if ($RegistryKeyProps.$RequiredKey -eq $RequiredValue)
         {
-            #If it does, saves as notafiding
+            #If it does, saves as notafinding
             $Details = "Required key $RequiredKey is "+$RequiredValue.ToString()
             Set-VulnCheckResult -CKLData $CKLData -VulnID $VulnID -Details $Details -Comments $Comments -Result NotAFinding
         }
@@ -862,7 +862,7 @@ function Merge-CKLs
         [Parameter(Mandatory=$true)][string]$SaveFilePath,
         [switch]$IncludeNR
     )
-    #Load both inputes
+    #Load both inputs
     $DestinationCKL = Import-StigCKL -Path $DestinationCKLFile
     $SourceCKL = Import-StigCKL -Path $SourceCKLFile
     #Merge 'em
@@ -1134,7 +1134,7 @@ function Get-XCCDFVulnInformation {
     $Groups = $XCCDF.Benchmark.Group
     foreach ($Group in $Groups) {
         $Description = $Group.Rule.description;
-        #Description is weird, it is like further XML, but encoded and not as seperate elements. idk, but this regex will extract what we want out of the mess
+        #Description is weird, it is like further XML, but encoded and not as separate elements. idk, but this regex will extract what we want out of the mess
         if ($Description -match "<VulnDiscussion\>([\w\W]*)</VulnDiscussion>") {
             $Description = $Matches[1]
         }

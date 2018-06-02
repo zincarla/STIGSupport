@@ -1,12 +1,12 @@
 ﻿<#
 .SYNOPSIS
-    Compares the latest stig library against a provided repository of checlists
+    Compares the latest stig library against a provided repository of checklists
 
 .DESCRIPTION
     Downloads the NON-FOUO stig library for the current month, extracts it, then compares it to a directory of checklist files. 
     Potential changes and new checks are documented, then sent to the specified recipients. The idea with this script is that
     it can be set to run as a scheduled task, alerting people to relevant changes in the STIGs. These changes could then be 
-    addressed immediatly.
+    addressed immediately.
 
 .PARAMETER Staging
     The directory the library will be downloaded and extracted to.
@@ -39,7 +39,7 @@
     URL to the STIG Library to download (Defaults to the assumed location of the current NON-FOUO library)
 
 .PARAMETER NoDownload
-    Prevent the script from redownloading/extracting the STIG files. This is good for if you needed to manually change some library files (Remove duplicates, fix permissions). Or are re-running a comparison.
+    Prevent the script from re-downloading/extracting the STIG files. This is good for if you needed to manually change some library files (Remove duplicates, fix permissions). Or are re-running a comparison.
 
 .EXAMPLE
     ContinuousSTIG.ps1 -CKLDirectory "\\MyShare\MyChecklists" -EmailServer "MySMTPServer" -EmailRecipients @("myadmin@mydomain.com", "mytest@test.com") -EmailFrom "STIGReport@mydomain.com"

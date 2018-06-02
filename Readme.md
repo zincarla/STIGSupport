@@ -1,6 +1,6 @@
 # STIGSupport Documentation
 
-There are two parts to this repository. First you have the StigSupport.psm1 powershell module. This contains all the code necessary for loading, and interacting with the CKL and XCCDF files. Second, there is a folder called Utility, which contains scripts that utilize the moduel to perform more complex operations. All the scripts assume your powershell session has the module imported. Ensure you import it first!
+There are two parts to this repository. First you have the StigSupport.psm1 powershell module. This contains all the code necessary for loading, and interacting with the CKL and XCCDF files. Second, there is a folder called Utility, which contains scripts that utilize the module to perform more complex operations. All the scripts assume your powershell session has the module imported. Ensure you import it first!
 
 Several of the PowerShell functions require a checklist template. This is just an empty checklist file as saved from the DISA STIG viewer application. In order to work with a checklist, it needs to be loaded into memory first. Here is a basic example on how to get the result of a check from a checklist, set it to something else, then save the checklist.
 
@@ -32,7 +32,7 @@ Converts an XCCDF file (Output from SCAP) to a CKL file for further processing
 Use the STIG viewer application to create a blank CKL file. That will be used for the TemplateCKLPath
 
 ```powershell
-&"Convert-XCCDFtoCKL.ps1" -TemplateCKLPath "<Path to blank ckl>" -STIGName "<STIG name to filter XCCDF files to like U_Windows_2012_and_2012_R2_MS_V2R7_STIG>" -SaveDirectory "<A direcotry to save the results to>" [-XCCFPath "<Optional path to XCCF files directory. If not set, will auto set to %USERPROFILE%\SCC\RESULTS\SCAP The default directory>"]
+&"Convert-XCCDFtoCKL.ps1" -TemplateCKLPath "<Path to blank ckl>" -STIGName "<STIG name to filter XCCDF files to like U_Windows_2012_and_2012_R2_MS_V2R7_STIG>" -SaveDirectory "<A directory to save the results to>" [-XCCFPath "<Optional path to XCCF files directory. If not set, will auto set to %USERPROFILE%\SCC\RESULTS\SCAP The default directory>"]
 ```
 
 ### Report on Open checks
@@ -280,7 +280,7 @@ Merge-XCCDFToCKL -CKLData $CKLData -XCCDF $XCCDFData
 
 ### Repair-StigCKL
 
-Opens and resaves a CKL, may fix formatting issues
+Opens and re-saves a CKL, may fix formatting issues
 
 ```powershell
 Repair-StigCKL -Path "C:\CKLs\MyCKL.ckl"
