@@ -379,3 +379,61 @@ The output object of this function would look like:
 ```powershell
 @{ID="";Title="";Version="";Description="";FixText="";CheckText=""}
 ```
+
+### Import-CCIList
+
+Imports the CCIList XML from DISA, this list can be downloaded from the [DISA IASE page](https://iase.disa.mil/stigs/cci/pages/index.aspx)
+
+```powershell
+Import-CCIList -Path "C:\Test\U_CCI_List.xml"
+```
+
+### Get-CCIReferences
+
+Gets the references for the specified CCI ID (Generally IA Control Policies)
+
+```powershell
+Get-CCIReferences -CCIData $CCIData -CCIID "CCI-000001"
+```
+
+The output object is in the format of
+
+```powershell
+@(
+	[psobject]@{Title; Version; Index; Location; Definition},
+	[psobject]@{Title; Version; Index; Location; Definition},
+	[psobject]@{Title; Version; Index; Location; Definition}
+	#etc, one entry for each reference found and each version of the reference
+)
+```
+
+If you need a specific version of the NIST reference, you can filter the result such as, to get NIST revision 4 data
+
+```powershell
+Get-CCIReferences -CCIData $CCIData -CCIID "CCI-000001" | Where-Object -FilterScript {$_.Version -eq 4}
+```
+
+### Get-CCIVulnReferences
+
+A wrapper around Get-CCIReferences, Gets the references for the specified CCI IDs associated with the specified VulnID
+
+```powershell
+Get-CCIVulnReferences -CCIData $CCIData -CKLData $CKLData -VulnID "V-11111"
+```
+
+The output object is in the format of
+
+```powershell
+@(
+	[psobject]@{Title; Version; Index; Location; Definition},
+	[psobject]@{Title; Version; Index; Location; Definition},
+	[psobject]@{Title; Version; Index; Location; Definition}
+	#etc, one entry for each reference found and each version of the reference
+)
+```
+
+If you need a specific version of the NIST reference, you can filter the result such as, to get NIST revision 4 data
+
+```powershell
+Get-CCIVulnReferences -CCIData $CCIData -CKLData $CKLData -VulnID "V-11111" | Where-Object -FilterScript {$_.Version -eq 4}
+```

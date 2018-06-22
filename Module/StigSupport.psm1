@@ -122,17 +122,14 @@ function Get-VulnInfoAttribute
     if ($VulnID -ne $null )
     {
         #Grab attribute by VulnID
-        <#$ToReturn = ((Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.STIG_DATA | 
-            Where-Object {$_.VULN_ATTRIBUTE -eq $Attribute}).ATTRIBUTE_DATA#>
-        #Waaay faster, StopWatch test showed 7 seconds, versus previous 30 seconds for 1000 runs.
-        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
+        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.SelectNodes("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
     }
     elseif ($RuleID -ne $null)
     {
         #If rule was set, grab it by the rule
-        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_ID' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
+        $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_ID' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectNodes("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
         if ($ToReturn -eq $null) {
-            $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_Ver' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectSingleNode("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
+            $ToReturn = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Rule_Ver' and ATTRIBUTE_DATA='$RuleID']").Node.ParentNode.SelectNodes("descendant::STIG_DATA[VULN_ATTRIBUTE='$Attribute']").Attribute_Data
         }
     }
     else
@@ -1144,10 +1141,99 @@ function Get-XCCDFVulnInformation {
 }
 #endregion
 
+#region CCI Functions
+<#
+.SYNOPSIS
+    Imports the CCIList XML from DISA
+
+.PARAMETER Path
+    Path to the CCIList XML
+
+.NOTES
+    Downloaded from https://iase.disa.mil/stigs/cci/pages/index.aspx
+  
+.EXAMPLE
+    Import-CCIList -Path "C:\Test\U_CCI_List.xml"
+#>
+function Import-CCIList
+{
+    Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$Path)
+    return [XML](Get-Content -Path $Path)
+}
+
+
+<#
+.SYNOPSIS
+    Gets the references for the specified CCI ID (Generally IA Control Policies)
+
+.PARAMETER CCIData
+    CCIList data as returned by Import-CCIList
+
+.PARAMETER CCIID
+    ID of the CCI to get the references for
+
+.EXAMPLE
+    Get-CCIReferences -CCIData $CCIData -CCIID "CCI-000001"
+#>
+function Get-CCIReferences
+{
+    Param([Parameter(Mandatory=$true)][xml]$CCIData, [Parameter(Mandatory=$true)][string]$CCIID)
+    $ToReturn = @()
+    $Definition = (Select-XML -Xml $CCIData -XPath "//*[local-name()='cci_item' and @id='$CCIID']").Node.definition
+    $Results = @()+(Select-XML -Xml $CCIData -XPath "//*[local-name()='cci_item' and @id='$CCIID']/*[local-name()='references']/*[local-name()='reference']").Node
+    foreach ($Result in $Results) {
+        $ToReturn += New-Object -TypeName PSObject -Property @{Title=$Result.Title; Version=$Result.Version; Index=$Result.Index; Location=$Result.Location; Definition=$Definition}
+    }
+    #Return null on no results
+    if ($Results.Count -le 0) {
+        return $null
+    }
+    #Return table of
+    return $ToReturn
+}
+
+<#
+.SYNOPSIS
+    Gets the references for the specified CCI IDs associated with the specified VulnID
+
+.PARAMETER CCIData
+    CCIList data as returned by Import-CCIList
+
+.PARAMETER CKLData
+    CKLData as loaded from the Import-STIGCKL function
+
+.PARAMETER VulnID
+    VulnID to get the references for (Do not use with RuleID)
+
+.PARAMETER RuleID
+    RuleID to get the references for (Do not use with VulnID)
+
+.EXAMPLE
+    Get-CCIVulnReferences -CCIData $CCIData -CKLData $CKLData -VulnID "V-11111"
+#>
+function Get-CCIVulnReferences {
+    Param([Parameter(Mandatory=$true)][xml]$CCIData, [Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData, $VulnID, $RuleID)
+    $CCIDs = @()+(Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -RuleID $RuleID -Attribute CCI_REF)
+    $Results = @()
+    $Keys = @()
+    foreach ($CCIID in $CCIDs) {
+        $SubResults = Get-CCIReferences -CCIData $CCIData -CCIID $CCIID
+        foreach ($Result in $SubResults) {
+            $Key = $Result.Title+$Result.Version+$Result.Index
+            if (-not $Keys.Contains($Key)) {
+                $Keys += $Key
+                $Results += $Result
+            }
+        }
+    }
+    return $Results
+}
+#endregion
+
 #Export members
 Export-ModuleMember -Function   Get-VulnInfoAttribute, Set-StigDataAttribute, Get-VulnFindingAttribute, Set-VulnFindingAttribute, 
                                 Get-VulnIDs, Get-StigAttributeList, Set-VulnCheckResult, Get-VulnCheckResult, Import-StigCKL, 
                                 Export-StigCKL, Repair-StigCKL, Get-CKLHostData, Set-VulnCheckResultFromRegistry, Set-CKLHostData, 
                                 Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, 
                                 Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute, Get-XCCDFInfo, Get-XCCDFVulnInformation, 
-                                Get-CheckListInfo, Get-CKLVulnInformation;
+                                Get-CheckListInfo, Get-CKLVulnInformation, Import-CCIList, Get-CCIReferences, Get-CCIVulnReferences;
