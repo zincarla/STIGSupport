@@ -469,5 +469,5 @@ The properties of the objects returned by this cmdlet are dynamic based on the p
 This function allows for one to create a filter to find vulns based on their attributes. For example, to find all vulns who have a CCI_REF of "CCI-000001" you can now do
 
 ```powershell
-Get-VulnInformation | Where-Object {$_.CCI_REF -contains "CCI-000001"}
+Get-VulnInformation -CKLData $CKLData -NoAliases | Where-Object {$_.CCI_REF -contains "CCI-000001"}
 ```
