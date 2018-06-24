@@ -203,7 +203,7 @@ foreach ($CKLInfo in $CKLIndex) {
             $XCCDFRules = Get-XCCDFVulnInformation -XCCDF $XCCDFData
             Write-Progress -Activity "$($CKLInfo.FilePath)" -ParentId 0 -ID 1 -CurrentOperation "Loading CKL" -PercentComplete 0
             $CKLData = Import-StigCKL -Path $CKLInfo.FilePath
-            $CKLRules = Get-CKLVulnInformation -CKL $CKLData
+            $CKLRules = Get-VulnInformation -CKL $CKLData
             $R=0
             Write-Progress -Activity "$($CKLInfo.FilePath)" -ParentId 0 -ID 1 -CurrentOperation "Rules" -PercentComplete 0
             foreach ($CKLRule in $CKLRules) {
