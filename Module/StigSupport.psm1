@@ -558,6 +558,7 @@ function Get-VulnCheckResult
 #>
 function Get-CKLVulnInformation
 {
+    [Obsolete("Please use Get-VulnInformation instead.")] 
     Param
     (
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData
@@ -571,6 +572,61 @@ function Get-CKLVulnInformation
         $FixText = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Fix_Text
         $CheckText = Get-VulnInfoAttribute -CKLData $CKLData -VulnID $VulnID -Attribute Check_Content
         $Results += New-Object -TypeName PSObject -Property @{ID=$VulnID;Title=$Title;Version=$Version;Description=$Description;FixText=$FixText;CheckText=$CheckText}
+    }
+    return $Results
+}
+
+<#
+.SYNOPSIS
+    Returns an array of the vulns in the CKL file and all it's associated informational properties (Vuln_ID, Rule_ID, CCI_REF etc)
+
+.PARAMETER CKLData
+    CKL data as loaded from the Import-StigCKL
+
+.PARAMETER NoAliases
+    Aliases are added for backwards compatibility with obsolete Get-CKLVulnInformation, this turns those off
+
+.EXAMPLE
+    Get-VulnInformation -CKLData $CKLData
+
+.EXAMPLE
+    Get-VulnInformation -CKLData $CKLData -NoAliases
+#>
+function Get-VulnInformation
+{
+    Param
+    (
+        [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData,
+        [switch]$NoAliases
+    )
+    $Results = @()
+    $VulnIDs = Get-VulnIDs -CKLData $CKLData
+    foreach ($VulnID in $VulnIDs) {
+        $VulnInfo = (Select-XML -Xml $CKLData -XPath "//STIG_DATA[VULN_ATTRIBUTE='Vuln_Num' and ATTRIBUTE_DATA='$VulnID']").Node.ParentNode.SelectNodes("descendant::STIG_DATA")
+        $ToAdd = @{}
+        foreach($Attribute in $VulnInfo) {
+            if ($ToAdd.ContainsKey($Attribute.VULN_ATTRIBUTE)) {
+                if ($ToAdd[$Attribute.VULN_ATTRIBUTE].GetType().BaseType -eq "System.Array") {
+                    $ToAdd[$Attribute.VULN_ATTRIBUTE] += $Attribute.ATTRIBUTE_DATA
+                } else {
+                    $ToAdd[$Attribute.VULN_ATTRIBUTE] = @($ToAdd[$Attribute.VULN_ATTRIBUTE], $Attribute.ATTRIBUTE_DATA)
+                }
+            } else {
+                $ToAdd+= @{$Attribute.VULN_ATTRIBUTE=$Attribute.ATTRIBUTE_DATA}
+            }
+        }
+        $ToAdd = New-Object -TypeName PSObject -Property $ToAdd
+
+        #Add some aliases
+        if (-not $NoAliases) {
+            Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name Description -Value "Vuln_Discuss" -SecondValue System.String
+            Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name Title -Value "Rule_Title" -SecondValue System.String
+            Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name Version -Value "Rule_Ver" -SecondValue System.String
+            Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name FixText -Value "Fix_Text" -SecondValue System.String
+            Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name CheckText -Value "Check_Content" -SecondValue System.String
+        }
+
+        $Results += $ToAdd
     }
     return $Results
 }
@@ -1141,7 +1197,7 @@ function Get-XCCDFVulnInformation {
 }
 #endregion
 
-#region CCI Functions
+#region CCI Ref Functions
 <#
 .SYNOPSIS
     Imports the CCIList XML from DISA
@@ -1236,4 +1292,5 @@ Export-ModuleMember -Function   Get-VulnInfoAttribute, Set-StigDataAttribute, Ge
                                 Export-StigCKL, Repair-StigCKL, Get-CKLHostData, Set-VulnCheckResultFromRegistry, Set-CKLHostData, 
                                 Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, 
                                 Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute, Get-XCCDFInfo, Get-XCCDFVulnInformation, 
-                                Get-CheckListInfo, Get-CKLVulnInformation, Import-CCIList, Get-CCIReferences, Get-CCIVulnReferences;
+                                Get-CheckListInfo, Get-CKLVulnInformation, Import-CCIList, Get-CCIReferences, Get-CCIVulnReferences,
+                                Get-VulnInformation;

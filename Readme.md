@@ -368,7 +368,7 @@ The output object of this function would look like:
 
 ### Get-CKLVulnInformation
 
-Returns an array of the vulns in the CKL file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
+**OBSOLETE - Use Get-VulnInformation** Returns an array of the vulns in the CKL file (ID, Title, Version, Description/VulnDiscussion, FixText, CheckText)
 
 ```powershell
 Get-CKLVulnInformation -CKLData $CKLData
@@ -400,10 +400,10 @@ The output object is in the format of
 
 ```powershell
 @(
-	[psobject]@{Title; Version; Index; Location; Definition},
-	[psobject]@{Title; Version; Index; Location; Definition},
-	[psobject]@{Title; Version; Index; Location; Definition}
-	#etc, one entry for each reference found and each version of the reference
+    [psobject]@{Title; Version; Index; Location; Definition},
+    [psobject]@{Title; Version; Index; Location; Definition},
+    [psobject]@{Title; Version; Index; Location; Definition}
+    #etc, one entry for each reference found and each version of the reference
 )
 ```
 
@@ -425,10 +425,10 @@ The output object is in the format of
 
 ```powershell
 @(
-	[psobject]@{Title; Version; Index; Location; Definition},
-	[psobject]@{Title; Version; Index; Location; Definition},
-	[psobject]@{Title; Version; Index; Location; Definition}
-	#etc, one entry for each reference found and each version of the reference
+    [psobject]@{Title; Version; Index; Location; Definition},
+    [psobject]@{Title; Version; Index; Location; Definition},
+    [psobject]@{Title; Version; Index; Location; Definition}
+    #etc, one entry for each reference found and each version of the reference
 )
 ```
 
@@ -436,4 +436,38 @@ If you need a specific version of the NIST reference, you can filter the result 
 
 ```powershell
 Get-CCIVulnReferences -CCIData $CCIData -CKLData $CKLData -VulnID "V-11111" | Where-Object -FilterScript {$_.Version -eq 4}
+```
+
+### Get-VulnInformation
+
+Returns an array of the vulns in the CKL file and all it's associated informational properties (Vuln_ID, Rule_ID, CCI_REF etc)
+Backwards compatible with Get-CKLVulnInformation
+
+```powershell
+Get-VulnInformation -CKLData $CKLData
+```
+
+to remove backwards compatible aliases
+
+```powershell
+Get-VulnInformation -CKLData $CKLData -NoAliases
+```
+
+The output object is in the format of
+
+```powershell
+@(
+    [psobject]@{Vuln_Num=""; Rule_Ver=""; <# etc #>},
+    [psobject]@{Vuln_Num=""; Rule_Ver=""; <# etc #>},
+    [psobject]@{Vuln_Num=""; Rule_Ver=""; <# etc #>}
+    #etc, one entry for each vuln in checklist file
+)
+```
+
+The properties of the objects returned by this cmdlet are dynamic based on the properties of the vulns in the checklist file, if new properties are added, they will show here. If a property has duplicates (Such as CCI_REF may have), the property on the returned object will be an array of all instances of that property.
+
+This function allows for one to create a filter to find vulns based on their attributes. For example, to find all vulns who have a CCI_REF of "CCI-000001" you can now do
+
+```powershell
+Get-VulnInformation | Where-Object {$_.CCI_REF -contains "CCI-000001"}
 ```
