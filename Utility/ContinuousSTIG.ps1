@@ -61,7 +61,7 @@ Param
     $ReportSavePath="C:\Users\Public\STIGReport.txt",
     $ExtractionRepository,
     [switch]$IgnoreMinorChanges,
-    $LibraryURL = "http://iasecontent.disa.mil/stigs/zip/Compilations/U_SRG-STIG_Library_$([DateTime]::Now.Year)_$([DateTime]::Now.ToString("MM")).zip",
+    $LibraryURL, #If null, script will attempt to find latest one
     [Switch]$NoDownload
 )
 
@@ -96,11 +96,49 @@ if (-not $NoDownload) {
             Remove-Item -Path $ZipPath -ErrorAction Stop
         }
         Write-Host "Downloading the DISA Stig Library"
-        $Trash = Invoke-WebRequest -Uri $URL -OutFile $ZipPath -ErrorAction Stop
     } catch {
-        Write-Error "Failed prepare staging area, or download new library"
-        #TODO: Alert on failure
+        Write-Error "Failed prepare staging area"
         exit 1
+    }
+
+    $AutoDate = [DateTime]::Now
+    $AutoRetryCount = 0
+    $Auto=$URL -eq $null
+
+    if (-not $Auto) {
+        try {
+        $Trash = Invoke-WebRequest -Uri $URL -OutFile $ZipPath -ErrorAction Stop
+        } catch {
+            Write-Error "Failed to download new library. $_"
+            exit 1
+        }
+    } else {
+        Write-Host "Using automatic search for STIG library"
+        #Loop through the urls and try to find the latest library if not already provided
+        while ($true) {
+            $URL = "http://iasecontent.disa.mil/stigs/zip/Compilations/U_SRG-STIG_Library_$($AutoDate.Year)_$($AutoDate.ToString("MM")).zip"
+            Write-Host "Attempt $($AutoRetryCount+1) : $URL"
+            try {
+                $Trash = Invoke-WebRequest -Uri $URL -OutFile $ZipPath -ErrorAction Stop
+                break
+            } catch {
+                $E = $_
+                #Write-Host $E.ToString()
+                Write-Host ($E.ToString().Contains("404") -or $E.ToString().Contains("Not found") -or $E.ToString().Contains("403") -or $E.ToString().Contains("Forbidden"))
+                #404
+                if ($E.ToString().Contains("404") -or $E.ToString().Contains("Not found") -or $E.ToString().Contains("403") -or $E.ToString().Contains("Forbidden")) {
+                    if ($AutoRetryCount -gt 5) {
+                        Write-Error "Failed to download library, 404"
+                        exit 1
+                    }
+                    $AutoDate = $AutoDate.AddMonths(-1)
+                    $AutoRetryCount++
+                } else {
+                    Write-Error "Failed to download new library"
+                    exit 1
+                }
+            }
+        }
     }
 
     #Extract it to the staging directory
@@ -118,7 +156,6 @@ if (-not $NoDownload) {
         }
     } catch {
         Write-Error "Failed to unzip the library"
-        #TODO: Alert on failure
         exit 1
     }
 
