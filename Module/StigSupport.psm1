@@ -676,7 +676,7 @@ function Export-StigCKL
     #Set XML Options to replicate those of the STIG Viewer application
     $XMLSettings = New-Object -TypeName System.XML.XMLWriterSettings
     $XMLSettings.Indent = $true;
-    $XMLSettings.IndentChars = "    "
+    $XMLSettings.IndentChars = "`t"
     $XMLSettings.NewLineChars="`n"
     #Add Host data if requested
     if ($AddHostData)
@@ -1168,7 +1168,7 @@ function Get-XCCDFInfo
 {
     Param([Parameter(Mandatory=$true)][xml]$XCCDF)
     $Version = ($XCCDF.Benchmark.'plain-text' | Where-Object {$_.id -eq 'release-info'}).'#text'
-    return (New-Object -TypeName PSObject -Property @{Title=$XCCDF.Benchmark.title;Description=$XCCDF.Benchmark.description;Release=$Version})
+    return (New-Object -TypeName PSObject -Property @{Title=$XCCDF.Benchmark.title;Description=$XCCDF.Benchmark.description;Release=$Version; Version=$XCCDF.Benchmark.version; ID = $XCCDF.Benchmark.id})
 }
 
 <#
@@ -1177,24 +1177,241 @@ function Get-XCCDFInfo
 
 .PARAMETER XCCDF
     XCCDF data as loaded from the Import-XCCDF
+
+.PARAMETER Full
+    If supplied, will pull all information in a less friendly format.
   
 .EXAMPLE
     Get-XCCDFVulnInformation -XCCDF $XCCDFData
+
+.EXAMPLE
+    Get-XCCDFVulnInformation -XCCDF $XCCDFData -Full
 #>
 function Get-XCCDFVulnInformation {
-    Param([Parameter(Mandatory=$true)][xml]$XCCDF)
+    Param([Parameter(Mandatory=$true)][xml]$XCCDF, [Switch]$Full)
     $Results = @()
     $Groups = $XCCDF.Benchmark.Group
     foreach ($Group in $Groups) {
-        $Description = $Group.Rule.description;
-        #Description is weird, it is like further XML, but encoded and not as separate elements. idk, but this regex will extract what we want out of the mess
-        if ($Description -match "<VulnDiscussion\>([\w\W]*)</VulnDiscussion>") {
-            $Description = $Matches[1]
+        if (-not $Full) {
+            $Description = $Group.Rule.description;
+            #Description is weird, it is like further XML, but encoded and not as separate elements. idk, but this regex will extract what we want out of the mess
+            if ($Description -match "<VulnDiscussion\>([\w\W]*)</VulnDiscussion>") {
+                $Description = $Matches[1]
+            }
+            $Results += New-Object -TypeName PSObject -Property @{ID=$Group.id;Title=$Group.Rule.Title;Version=$Group.Rule.Version;Description=$Description;FixText=$Group.Rule.fixtext.'#text';CheckText=$Group.Rule.check.'check-content'}
+        } else {
+            #Breakout Description
+            $Description = $Group.Rule.description
+            if ($Description -match "<VulnDiscussion\>([\w\W]*)</VulnDiscussion>") {
+                $Description = $Matches[1]
+            }
+            $FalsePositives = ""
+            if ($Group.Rule.description -match "<FalsePositives\>([\w\W]*)</FalsePositives>") {
+                $FalsePositives = $Matches[1]
+            }
+            $FalseNegatives = ""
+            if ($Group.Rule.description -match "<FalseNegatives\>([\w\W]*)</FalseNegatives>") {
+                $FalseNegatives = $Matches[1]
+            }
+            $Documentable = ""
+            if ($Group.Rule.description -match "<Documentable\>([\w\W]*)</Documentable>") {
+                $Documentable = $Matches[1]
+            }
+            $Mitigations = ""
+            if ($Group.Rule.description -match "<Mitigations\>([\w\W]*)</Mitigations>") {
+                $Mitigations = $Matches[1]
+            }
+            $SeverityOverrideGuidance = ""
+            if ($Group.Rule.description -match "<SeverityOverrideGuidance\>([\w\W]*)</SeverityOverrideGuidance>") {
+                $SeverityOverrideGuidance = $Matches[1]
+            }
+            $PotentialImpacts = ""
+            if ($Group.Rule.description -match "<PotentialImpacts\>([\w\W]*)</PotentialImpacts>") {
+                $PotentialImpacts = $Matches[1]
+            }
+            $ThirdPartyTools = ""
+            if ($Group.Rule.description -match "<ThirdPartyTools\>([\w\W]*)</ThirdPartyTools>") {
+                $ThirdPartyTools = $Matches[1]
+            }
+            $MitigationControl = ""
+            if ($Group.Rule.description -match "<MitigationControl\>([\w\W]*)</MitigationControl>") {
+                $MitigationControl = $Matches[1]
+            }
+            $Responsibility = ""
+            if ($Group.Rule.description -match "<Responsibility\>([\w\W]*)</Responsibility>") {
+                $Responsibility = $Matches[1]
+            }
+            $IAControls = ""
+            if ($Group.Rule.description -match "<IAControls\>([\w\W]*)</IAControls>") {
+                $IAControls = $Matches[1]
+            }
+
+
+            $Check = New-Object PSObject -Property @{ System=$Group.Rule.check.system; ContentRefName = $Group.Rule.check.'check-content-ref'.name;
+                ContentRefHREF=$Group.Rule.check.'check-content-ref'.href; Content = $Group.Rule.check.'check-content'; }
+
+            $Reference = New-Object PSObject -Property @{ Title = $Group.Rule.reference.title; Publisher = $Group.Rule.reference.publisher;
+                Type=$Group.Rule.reference.type; Subject = $Group.Rule.reference.subject; Identifier = $Group.Rule.reference.identifier;}
+
+            $Rule = New-Object PSObject -Property @{ID=$Group.Rule.id; Version = $Group.Rule.version; Severity = $Group.Rule.severity; 
+                Weight = $Group.Rule.weight; Title=$Group.Rule.title; Description=$Description; Ident = $Group.Rule.ident.InnerText;
+                IdentSystem = $Group.Rule.ident.system; FixText = $Group.Rule.fixtext.InnerText; FixTextRef = $Group.Rule.fixtext.fixref;
+                FixID = $Group.Rule.fix.id; Check=$Check; Reference = $Reference; FalsePositives = $FalsePositives; FalseNegatives=$FalseNegatives;
+                Documentable=$Documentable; Mitigations=$Mitigations; SeverityOverrideGuidance=$SeverityOverrideGuidance; PotentialImpacts=$PotentialImpacts;
+                ThirdPartyTools=$ThirdPartyTools; MitigationControl=$MitigationControl; Responsibility=$Responsibility; IAControls=$IAControls}
+
+            $Results += New-Object PSObject -Property @{ID=$Group.id; Title=$Group.title; Description = $Group.description; Rule=$Rule}
         }
-        $Results += New-Object -TypeName PSObject -Property @{ID=$Group.id;Title=$Group.Rule.Title;Version=$Group.Rule.Version;Description=$Description;FixText=$Group.Rule.fixtext.'#text';CheckText=$Group.Rule.check.'check-content'}
     }
     return $Results
 }
+
+<#
+Internal Helper Function to create plain XML nodes (Literally form of <name>text</name>)
+#>
+function Add-XMLTextNode {
+    Param([Parameter(Mandatory=$true)][System.Xml.XmlDocument]$RootDocument, [Parameter(Mandatory=$true)][System.XML.XMLElement]$ParentNode, [Parameter(Mandatory=$true)][string]$Name, [string]$Text)
+    $NewNode = $RootDocument.CreateElement($Name);
+    $a = $NewNode.AppendChild($RootDocument.CreateTextNode($Text));
+    $a = $ParentNode.AppendChild($NewNode);
+}
+
+<#
+Internal Helper Function to create SI_DATA XML nodes
+#>
+function Add-SIDataNode {
+    Param([Parameter(Mandatory=$true)][System.Xml.XmlDocument]$RootDocument, [Parameter(Mandatory=$true)][System.XML.XMLElement]$ParentNode, [Parameter(Mandatory=$true)][string]$Name, $Data)
+    $NewNode = $RootDocument.CreateElement("SI_DATA");
+    Add-XMLTextNode -RootDocument $RootDocument -ParentNode $NewNode -Name "SID_NAME" -Text $Name
+    if ($Data -ne $null) {
+        Add-XMLTextNode -RootDocument $RootDocument -ParentNode $NewNode -Name "SID_DATA" -Text $Data
+    }
+    $a = $ParentNode.AppendChild($NewNode);
+}
+
+<#
+Internal Helper Function to create STIG_DATA XML nodes
+#>
+function Add-STIGDataNode {
+    Param([Parameter(Mandatory=$true)][System.Xml.XmlDocument]$RootDocument, [Parameter(Mandatory=$true)][System.XML.XMLElement]$ParentNode, [Parameter(Mandatory=$true)][string]$Name, [string]$Data)
+    $NewNode = $RootDocument.CreateElement("STIG_DATA");
+    Add-XMLTextNode -RootDocument $RootDocument -ParentNode $NewNode -Name "VULN_ATTRIBUTE" -Text $Name
+    Add-XMLTextNode -RootDocument $RootDocument -ParentNode $NewNode -Name "ATTRIBUTE_DATA" -Text $Data
+    $a = $ParentNode.AppendChild($NewNode);
+}
+
+<#
+.SYNOPSIS
+    Will convert a manual xccdf to a blank checklist
+
+.PARAMETER XCCDFPath
+    Full file path to the XCCDF File (Required as one property of the file include the file name)
+
+.PARAMETER SaveLocation
+    Full path to save the new CKL file to
+
+.EXAMPLE
+    Convert-ManualXCCDFToCKL -XCCDFPath "C:\Data\U_MyApp_Manual.xccdf" -SaveLocation "C:\Data\MyChecklist.ckl"
+#>
+function Convert-ManualXCCDFToCKL {
+    Param([Parameter(Mandatory=$true)][string]$XCCDFPath, $SaveLocation)
+    $XCCDF = Import-XCCDF -Path $XCCDFPath
+    $XCCDFData = Get-XCCDFVulnInformation -XCCDF $XCCDF -Full
+    $XCCDFHeadData = Get-XCCDFInfo -XCCDF $XCCDF
+
+    #Create XML
+    $ToSave = New-Object System.Xml.XmlDocument
+    #Header
+    $a = $ToSave.AppendChild($ToSave.CreateXmlDeclaration("1.0", "UTF=8", $null));
+    $a = $ToSave.AppendChild($ToSave.CreateComment("STIG Support Module"));
+    #Root
+    $a = $ToSave.AppendChild($ToSave.CreateElement("CHECKLIST"));
+
+    #Asset Data
+    $AssetNode = $ToSave.CreateElement("ASSET")
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "ROLE" -Text "None"
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "ASSET_TYPE" -Text "Computing"
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_NAME" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_IP" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_MAC" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_FQDN" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "TECH_AREA" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "TARGET_KEY" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_OR_DATABASE" -Text "false"
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_DB_SITE" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_DB_INSTANCE" -Text ""
+    $a = $ToSave.LastChild.AppendChild($AssetNode);
+
+    #STIGS
+    $StigNode = $ToSave.CreateElement("STIGS");
+    $iSTIGNode = $ToSave.CreateElement("iSTIG");
+    $StigInfoNode = $ToSave.CreateElement("STIG_INFO")
+
+    ##SI_DATA Stuff
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "version" -Data $XCCDFHeadData.Version
+    #TODO: Verify if this is best way to check classification, from XCCDF, if not fix. Also, what are the other values?
+    $Classification = ""
+    $Class = ""
+    if ($XCCDF.'xml-stylesheet'.Contains("unclass")) {
+        $Classification = "UNCLASSIFIED"
+        $Class="Unclass"
+    }
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "classification" -Data $Classification
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "customname" -Data $null
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "stigid" -Data $XCCDFHeadData.ID
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "description" -Data $XCCDFHeadData.Description
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "filename" -Data (Get-Item -Path $XCCDFPath).Name
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "releaseinfo" -Data $XCCDFHeadData.Release
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "title" -Data $XCCDFHeadData.Title
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "uuid" -Data (New-Guid).ToString()
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "notice" -Data $XCCDF.Benchmark.notice.id
+    Add-SIDataNode -RootDocument $ToSave -ParentNode $StigInfoNode -Name "source" -Data $null
+    $a = $iSTIGNode.AppendChild($StigInfoNode);
+
+    ##VULN
+    foreach ($Vuln in $XCCDFData) {
+        $VulnNode = $ToSave.CreateElement("VULN")
+        #Set Properties
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Vuln_Num" -Data $Vuln.ID
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Severity" -Data $Vuln.Rule.Severity
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Group_Title" -Data $Vuln.Title
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Rule_ID" -Data $Vuln.Rule.ID
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Rule_Ver" -Data $Vuln.Rule.Version
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Rule_Title" -Data $Vuln.Rule.Title
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Vuln_Discuss" -Data $Vuln.Rule.Description
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "IA_Controls" -Data $Vuln.Rule.IAControls
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Check_Content" -Data $Vuln.Rule.Check.Content
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Fix_Text" -Data $Vuln.Rule.FixText
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "False_Positives" -Data $Vuln.Rule.FalsePositives
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "False_Negatives" -Data $Vuln.Rule.FalseNegatives
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Documentable" -Data $Vuln.Rule.Documentable
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Mitigations" -Data $Vuln.Rule.Mitigations
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Potential_Impact" -Data $Vuln.Rule.PotentialImpacts
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Third_Party_Tools" -Data $Vuln.Rule.ThirdPartyTools
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Mitigation_Control" -Data $Vuln.Rule.MitigationControl
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Responsibility" -Data $Vuln.Rule.Responsibility
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Security_Override_Guidance" -Data $Vuln.Rule.SeverityOverrideGuidance
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Check_Content_Ref" -Data $Vuln.Rule.Check.ContentRefName
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Weight" -Data $Vuln.Rule.Weight
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "Class" -Data $Class
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "STIGRef" -Data ($XCCDFHeadData.Title+" :: "+"Version "+$XCCDFHeadData.Version+", "+$XCCDFHeadData.Release)
+        Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "TargetKey" -Data $Vuln.Rule.Reference.Identifier
+        foreach ($CCI in (@()+$Vuln.Rule.Ident)) {
+            Add-STIGDataNode -RootDocument $ToSave -ParentNode $VulnNode -Name "CCI_REF" -Data $CCI
+        }
+        Add-XMLTextNode -RootDocument $ToSave -ParentNode $VulnNode -Name "STATUS" -Text "Not_Reviewed"
+        Add-XMLTextNode -RootDocument $ToSave -ParentNode $VulnNode -Name "FINDING_DETAILS"
+        Add-XMLTextNode -RootDocument $ToSave -ParentNode $VulnNode -Name "COMMENTS"
+        Add-XMLTextNode -RootDocument $ToSave -ParentNode $VulnNode -Name "SEVERITY_OVERRIDE"
+        Add-XMLTextNode -RootDocument $ToSave -ParentNode $VulnNode -Name "SEVERITY_JUSTIFICATION"
+        $a = $iSTIGNode.AppendChild($VulnNode);
+    }
+    $a = $StigNode.AppendChild($iSTIGNode);
+    $a = $ToSave.LastChild.AppendChild($StigNode);
+    
+    Export-StigCKL -CKLData $ToSave -Path $SaveLocation
+}
+
 #endregion
 
 #region CCI Ref Functions
@@ -1293,4 +1510,4 @@ Export-ModuleMember -Function   Get-VulnInfoAttribute, Set-StigDataAttribute, Ge
                                 Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, 
                                 Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute, Get-XCCDFInfo, Get-XCCDFVulnInformation, 
                                 Get-CheckListInfo, Get-CKLVulnInformation, Import-CCIList, Get-CCIReferences, Get-CCIVulnReferences,
-                                Get-VulnInformation;
+                                Get-VulnInformation, Convert-ManualXCCDFToCKL;
