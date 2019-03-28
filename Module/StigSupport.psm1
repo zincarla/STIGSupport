@@ -57,7 +57,8 @@ function Get-CheckListInfo {
     Param([Alias("XMLData")][Parameter(Mandatory=$true,ValueFromPipeline = $true)][XML]$CKLData)
     return (New-Object -TypeName PSObject -Property @{Title=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "title");
                                                       Description=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "description");
-                                                      Release=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "releaseinfo")});
+                                                      Release=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "releaseinfo");
+                                                      ID=(Get-StigInfoAttribute -CKLData $CKLData -Attribute "stigid")});
 }
 
 <#
@@ -865,7 +866,9 @@ function Merge-CKLData
     (
         [Parameter(Mandatory=$true)][XML]$SourceCKL,
         [Parameter(Mandatory=$true)][XML]$DestinationCKL,
-        [switch]$IncludeNR
+        [switch]$IncludeNR,
+        [switch]$DontCopyHostInfo,
+        [switch]$DontOverwriteVulns
     )
     #Get the stig results form the source
     Write-Progress -Activity "Merging" -CurrentOperation "Loading old results"
@@ -876,14 +879,25 @@ function Merge-CKLData
     foreach ($Result in $StigResults)
     {
         if ($Result.Status -ne "Not_Reviewed" -or $IncludeNR) {
-            Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
+            if ($DontOverwriteVulns) {
+                $PrevResult = Get-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID
+                if ($PrevResult -eq $null -or $PrevResult.Status -eq "Not_Reviewed") {
+                    Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
+                }
+            }
+            else
+            {
+                Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
+            }
         }
         $I++;
         Write-Progress -Activity "Merging" -PercentComplete (($I*100)/$StigResults.Length)
     }
     #Copy over host info
-    $HostInfo = Get-CKLHostData -CKLData $SourceCKL
-    Set-CKLHostData -CKLData $DestinationCKL -Host $HostInfo.HostName -FQDN $HostInfo.HostFQDN -Mac $HostInfo.HostMAC -IP $HostInfo.HostIP
+    if (-not $DontCopyHostInfo) {
+        $HostInfo = Get-CKLHostData -CKLData $SourceCKL
+        Set-CKLHostData -CKLData $DestinationCKL -Host $HostInfo.HostName -FQDN $HostInfo.HostFQDN -Mac $HostInfo.HostMAC -IP $HostInfo.HostIP
+    }
     Write-Progress -Activity "Merging" -PercentComplete 100 -Completed
 }
 
