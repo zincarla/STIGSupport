@@ -1082,6 +1082,9 @@ function Get-XCCDFResults
 
 .PARAMETER XCCDF
     XCCDF data as loaded from the Import-XCCDF
+
+.PARAMETER NoCommentsOnOpen
+    Will not write custom comments over previous comments if the check is open
   
 .EXAMPLE
     Merge-XCCDFToCKL -CKLData $CKLData -XCCDF $XCCDFData
@@ -1091,10 +1094,15 @@ function Merge-XCCDFToCKL
     Param
     (
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData, 
-        [Parameter(Mandatory=$true)][xml]$XCCDF
+        [Parameter(Mandatory=$true)][xml]$XCCDF,
+        [switch]$NoCommentsOnOpen
     )
     #Grab the results from the XCCDF Data
     $Results = Get-XCCDFResults -XCCDF $XCCDF
+    $PrevResults = $null
+    if ($NoCommentsOnOpen) {
+        $PrevResults = Get-VulnCheckResult -CKLData $CKLData
+    }
     $I=0;
     Write-Progress -Activity "Importing" -PercentComplete (($I*100)/$Results.Count)
     #Loop through them
@@ -1106,8 +1114,20 @@ function Merge-XCCDFToCKL
         {
             $Res = "NotAFinding"   
         }
+
+        $Details = "Checked by SCAP tool"
+        $Comments = "Checked by SCAP tool"
+        
+        if ($NoCommentsOnOpen) {
+            $PrevResult = $PrevResults | Where-Object {$_.RuleID -eq $Result.idref}
+            if ($PrevResult.Status -ne "NotAFinding") {
+                $Details = $PrevResult.Finding
+                $Comments = $PrevResult.Comments
+            }
+        }
+
         #Set it in the CKL
-        Set-VulnCheckResult -CKLData $CKLData -RuleID $Result.RuleID -Result $Res -Details "Checked by SCAP tool" -Comments "Checked by SCAP tool, imported into CKL by StigSupportFunctions.psm1"
+        Set-VulnCheckResult -CKLData $CKLData -RuleID $Result.RuleID -Result $Res -Details  $Details -Comments $Comments
         $I++;
         Write-Progress -Activity "Importing" -PercentComplete (($I*100)/$Results.Count)
     }
