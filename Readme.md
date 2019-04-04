@@ -20,4 +20,4 @@ Export-StigCKL -CKLData $CKLData -Path "C:\CKLs\MyCKL.ckl"
 This repository is split into two folders, these folder follow the following structure:
 
 - Module: Module required for all scripts
-- Utility: Misc. utilities to facilitate work with CKL files.
+- Utility: Misc. utilities to facilitate work with CKL files. View the readme under the utility folder for more information.
