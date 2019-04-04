@@ -2,7 +2,7 @@
 
 There are two parts to this repository. First you have the StigSupport.psm1 powershell module. This contains all the code necessary for loading, and interacting with the CKL and XCCDF files. Second, there is a folder called Utility, which contains scripts that utilize the module to perform more complex operations. All the scripts assume your powershell session has the module imported. Ensure you import it first!
 
-Several of the PowerShell functions require a checklist template. This is just an empty checklist file as saved from the DISA STIG viewer application. In order to work with a checklist, it needs to be loaded into memory first. Here is a basic example on how to get the result of a check from a checklist, set it to something else, then save the checklist.
+Several of the PowerShell functions require a checklist template. This is just an empty checklist file as saved from the DISA STIG viewer application or as exported from the included `Convert-ManualXCCDFToCKL` function. In order to work with a checklist, it needs to be loaded into memory first. Here is a basic example on how to get the result of a check from a checklist, set it to something else, then save the checklist.
 
 ```powershell
 #Module is required for all CKL/XCCDF commands
