@@ -8,6 +8,36 @@
     checks from the STIG library. Then, it merges with the pre-existing CKL file. This is so the SCAP can
     automatically account for changes that the SCAP has been updated to handle. New checks that may not be
     handled are reported in CKL, and checks that SCAP cannot handle, but were previously answered, stay answered.
+
+.PARAMETER Staging
+    The directory containing the extracted STIGs. Should be the same as passed to New-StigLibrary.ps1
+
+.PARAMETER CKLDirectory
+    Directory containing the CKL files to process.
+
+.PARAMETER EmailRecipients
+    Array of recipients for e-mail
+
+.PARAMETER EmailServer
+    Server to email from
+
+.PARAMETER EmailFrom
+    Email address to send from
+
+.PARAMETER EmailSubject
+    Subject of Email
+
+.PARAMETER ReportSavePath
+    Location to save the script output
+
+.PARAMETER ScapRepository
+    Location containing SCAP content and Scap Mapping file
+
+.PARAMETER ScapTool
+    Location of SCAP Compliance Checker Executable
+
+.PARAMETER SetNROnChange
+    Sets a check to open if the check content changed between STIG versions
 #>
 Param
 (
@@ -19,19 +49,21 @@ Param
     $EmailSubject = "Potential work required on ckl files",
     $ReportSavePath="C:\Users\Public\STIGReport.txt",
     [Parameter(Mandatory=$true)]$ScapRepository,
-    $ScapTool="C:\Program Files\SCAP Compliance Checker 5.1\cscc.exe"
+    $ScapTool="C:\Program Files\SCAP Compliance Checker 5.1\cscc.exe",
+    [switch]$SetNROnChange
 )
 
 #Ensure we have pre-req module imported
 if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -le 0) {
     Write-Error "Please import StigSupport.psm1 before running this script"
-    exit 1
+    return
 }
 
 #Metrics
 $StartTime = [DateTime]::Now
 $ItemsRequiringReview = 0;
 $FilesRequiringReview = 0;
+$CKLsSkipped = 0;
 $Report = ""
 #Various paths
 $LibraryPath = "$Staging\Library"
@@ -52,13 +84,7 @@ $DateT = Get-Date -Format "yyyy-MM-dd-HH-mm"
 #>
 function Get-ItemWithPropertyInListMatches {
     Param($List, $Property, $MatchRule)
-    $ToReturn = @()
-    foreach ($LI in $List) {
-        if ($LI.$Property -match $MatchRule) {
-            $ToReturn += $LI
-        }
-    }
-    return $ToReturn
+    return ($List | Where-Object {$_.$Property -match $MatchRule})
 }
 
 #Process
@@ -76,7 +102,7 @@ if (Test-Path -Path $MappingPath) {
 
         @($Data,$Data2) | ConvertTo-Json | Out-File (Join-Path -Path $ScapRepository -ChildPath "ScapMappingsExample.json")
     }
-    Write-Host "Scap mappings were not found. This script requires mappings. Cancelling."
+    Write-Error "Scap mappings were not found. This script requires mappings. Cancelling."
     $Report += "ERROR: Scap mapping file was not found. Cancelling`r`n"
     return
 }
@@ -150,14 +176,16 @@ foreach ($File in $CKLFiles) {
     elseif ($MatchingScap.Length -lt 1)
     {
         $Report += "WARN: $($File.FullName) does not have matching information in the Scap Mappings. Will be skipped.`r`n"
+        $CKLsSkipped ++;
     }
     elseif ($MatchingScap.Length -gt 1)
     {
         $Report += "WARN: $($File.FullName) has ambiguous matching information in the Scap Mappings. Will be skipped.`r`n"
         $Report += $MatchingScap[0].ToString()+"::"+$CKLI.ID+"`r`n"
+        $CKLsSkipped ++;
     }
 }
-$Report += "$($CKLCache.Length) previous CKLs found.`r`n"
+$Report += "$($CKLCache.Length) previous CKLs found with another $CKLsSkipped skipped.`r`n"
 
 #Scan Targets using SCAP
 #Prepare Results Directory
@@ -168,16 +196,18 @@ if (-not (Test-Path $ResultsPath)) {
 }
 
 Write-Host "Starting SCAP Scan Cycle"
-#This bit could be better I imagine. Right now, it clears SCAP tool of content, then adds content, scans, removes, one at a time
+#This bit could be better I imagine. Right now, it clears SCAP tool of content, then adds content, scans, removes content, one at a time
 for ($Index =0; $Index -lt $CKLCache.Length; $Index++) {
+    #We skip the SCAP scan if this CKL does not have matching SCAP content
     if ($CKLCache[$Index].ScapMapping.SCAP -ne "" -and $CKLCache[$Index].ScapMapping.SCAP -ne $null) {
-        Start-Process -FilePath $ScapTool -ArgumentList @("-ua") -Wait #Remove all SCAP Content
         Write-Host "Scanning $($CKLCache[$Index].Host) for $($CKLCache[$Index].ID)"
+
         #Prepare CSCC
+        Start-Process -FilePath $ScapTool -ArgumentList @("-ua") -Wait #Remove all SCAP Content
         Start-Process -FilePath $ScapTool -ArgumentList @("-iv", $CKLCache[$Index].ScapMapping.SCAP) -Wait #Install Content
         Start-Process -FilePath $ScapTool -ArgumentList @("-ea") -Wait #Enable Content
         #Scan
-        Start-Process -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) -Wait #Enable Content
+        Start-Process -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) -Wait #Scan target
         #Get Results and cache
         $ResultFile = @()+( Get-ChildItem -Path $ResultsPath -Filter "$($CKLCache[$Index].Host)*XCCDF-Results*$($CKLCache[$Index].ID)*.xml" -Recurse -ErrorAction SilentlyContinue)
         if ($ResultFile.Length -eq 1) {
@@ -185,9 +215,11 @@ for ($Index =0; $Index -lt $CKLCache.Length; $Index++) {
         }
         elseif ($ResultFile.Length -gt 1) {
             $Report += "WARN: Ambiguous results found for $($CKLCache[$Index].Host) on $($CKLCache[$Index].ID)"
+            Write-Warning "Ambiguous results found for $($CKLCache[$Index].Host) on $($CKLCache[$Index].ID)"
         }
         elseif ($ResultFile.Length -lt 1) {
             $Report += "WARN: Results not found for $($CKLCache[$Index].Host) on $($CKLCache[$Index].ID)"
+            Write-Warning "Results not found for $($CKLCache[$Index].Host) on $($CKLCache[$Index].ID)"
         }
     }
 }
@@ -221,6 +253,7 @@ foreach ($CKL in $CKLCache) {
     $TemplateCKL = $null
     if (-not $BlankCKLTable.ContainsKey($CKL.ID)) {
         $Report += "WARN: Manual content for $($CKL.ID) was not found. This file will not be updated."
+        Write-Warning "Manual content for $($CKL.ID) was not found. This file will not be updated."
         continue
     }
     $TemplateCKL = Import-StigCKL -Path $BlankCKLTable[$CKL.ID]
@@ -228,8 +261,34 @@ foreach ($CKL in $CKLCache) {
     #Load previous CKL
     $OldCKL = Import-StigCKL -Path $CKL.Path
 
+    #Cache changes before merge so we can set to NR
+    $CKLChanges = @()
+    if ($SetNROnChange) {
+        Write-Host "`tComparing new and old CKLs"
+        $OldChecks = Get-VulnInformation -CKLData $OldCKL -NoAliases
+        $NewChecks = Get-VulnInformation -CKLData $TemplateCKL -NoAliases
+        foreach ($NewCheck in $NewChecks) {
+            $MatchingCheck = $OldChecks | Where-Object {$_.Vuln_Num -eq $NewCheck.Vuln_Num}
+            if ($MatchingCheck) {
+                #Verify if different (Version or Check_Content is different. We ignore white-space in Check_Content
+                if ($MatchingCheck.Version -ne $NewCheck.Version -or
+                    ($MatchingCheck.Check_Content -replace "\s","") -ne ($NewCheck.Check_Content -replace "\s","")) {
+                    $CKLChanges += $MatchingCheck.Vuln_Num
+                }
+            }
+        }
+        $Report += "INFO: Found $($CKLChanges.Length) changes to $($CKL.Host) :: $($CKL.ID), these may need to be manually checked depending on SCAP scan"
+    }
+
     #Merge Previous CKL to results
     Merge-CKLData -SourceCKL $OldCKL -DestinationCKL $TemplateCKL
+
+    if ($SetNROnChange) {
+        #Set any results that changed to NR
+        foreach ($Change in $CKLChanges) {
+            Set-VulnCheckResult -CKLData $TemplateCKL -Result Not_Reviewed
+        }
+    }
 
     #Merge Result to Template
     if ($ResultXCCDF -ne $null) {
@@ -237,6 +296,7 @@ foreach ($CKL in $CKLCache) {
     }
     
     #Backup previous CKL
+    #TODO: Update this to replicate folder structure so we don't need this renaming business.
     $FileName = (Get-Item -Path $CKL.Path).Name
     $I=0;
     while(Test-Path -Path (Join-Path -Path $BackupDir -ChildPath $FileName)) { #In the case there are multiple file with same, name prefix a number
@@ -244,6 +304,7 @@ foreach ($CKL in $CKLCache) {
         $I++;
     }
     Move-Item -Path $CKL.Path -Destination (Join-Path -Path $BackupDir -ChildPath $FileName)
+
     #Overwrite CKL
     Export-StigCKL -CKLData $TemplateCKL -Path $CKL.Path
 
