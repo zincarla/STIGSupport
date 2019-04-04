@@ -77,16 +77,6 @@ Attempts to convert a checklist in 1.x version to a compatible 2.6 version check
 &"Convert-ToNewCKLVersion.ps1" -Source 'C:\CKLs\MyChecklist.ckl' -Destination 'C:\CKLs\UpgradedMyChecklist.ckl'
 ```
 
-## ContinuousSTIG.ps1
+## ContinuousSTIG
 
-This script will compare a directory containing CKL files with the latest STIG library and email a report on CKL files and checks that need to be re-evaluated. The intent is to have this run on a monthly schedule to ensure awareness of, and compliance with, STIGs as they are updated. As a brief overview, this script will:
-
-- Prepare a staging directory
-- Attempt to download the latest STIG library (NON-FOUO)
-- Extract it to the staging directory and all STIGs within it
-- Loop through the newly downloaded STIGs, and the user's CKL files comparing them
-- Email any noted differences to the specified users
-
-```powershell
-&"ContinuousSTIG.ps1" -CKLDirectory "\\MyShare\MyChecklists" -EmailServer "MySMTPServer" -EmailRecipients @("myadmin@mydomain.com", "mytest@test.com") -EmailFrom "STIGReport@mydomain.com"
-```
+This directory contains a set of scripts that facilitate an automatic review of CKL files. When used, this should auomatically run SCAP scans based on targets in pre-existing CKL files, merge the old CKLs with update CKLs and then merge the SCAP results into those. The intended effect is that this takes care of most of the work in maintaining an up-to-date CKL repository. More documentation in the folder.
