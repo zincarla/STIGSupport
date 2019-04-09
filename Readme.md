@@ -21,3 +21,10 @@ This repository is split into two folders, these folder follow the following str
 
 - Module: Module required for all scripts
 - Utility: Misc. utilities to facilitate work with CKL files. View the readme under the utility folder for more information.
+
+## Alternate Resources
+
+[Microsoft PowerStig](https://github.com/Microsoft/PowerStig)
+PowerShell modules that utilize DSC to enforce STIG compliance.
+[Matt Preston's PowerStigScan](https://github.com/mapresto/PowerStigScan)
+PowerShell module that utilizes PowerStig to scan resources using DSC.
