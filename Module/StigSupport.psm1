@@ -858,7 +858,7 @@ function Set-CKLHostData
         }
         if ($Role -eq $null) {
             $Role = "None"
-            $PType = (Get-WmiObject -Class Win32_OperatingSystem -Property ProductType).ProductType
+            $PType = (Get-WmiObject -Class Win32_OperatingSystem -Property ProductType -ComputerName $Host).ProductType
             if ($PType -eq 1) {
                 $Role = "Workstation"
             }
