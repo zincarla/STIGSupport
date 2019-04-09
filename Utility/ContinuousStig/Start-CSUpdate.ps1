@@ -69,6 +69,7 @@ $Report = ""
 $LibraryPath = "$Staging\Library"
 $SubLibraryPath = $LibraryPath+"\STIGS"
 $MappingPath = (Join-Path -Path $ScapRepository -ChildPath "ScapMappings.json")
+$BackupDir = (Join-Path -Path $CKLDirectory -ChildPath "Backups-$(Get-Date -Format "yyyy-MM-dd")")
 #Cache some file data
 $ScapFiles = Get-ChildItem -Path $ScapRepository -Filter "*Benchmark.xml" -Recurse
 $ManualFiles = Get-ChildItem -Path $SubLibraryPath -Filter "*manual-xccdf.xml" -Recurse
@@ -237,7 +238,6 @@ foreach($CKL in $CKLCache) {
 
 #Merge Results
 #Create Backup
-$BackupDir = (Join-Path -Path $CKLDirectory -ChildPath "Backups-$(Get-Date -Format "yyyy-MM-dd")")
 if (-not (Test-Path $BackupDir)) {
     New-Item -Path $BackupDir -ItemType Directory | Out-Null
 }
@@ -296,14 +296,13 @@ foreach ($CKL in $CKLCache) {
     }
     
     #Backup previous CKL
-    #TODO: Update this to replicate folder structure so we don't need this renaming business.
     $FileName = (Get-Item -Path $CKL.Path).Name
-    $I=0;
-    while(Test-Path -Path (Join-Path -Path $BackupDir -ChildPath $FileName)) { #In the case there are multiple file with same, name prefix a number
-        $FileName = "$I"+"_"+(Get-Item -Path $CKL.Path).Name
-        $I++;
+    $NewFullPath = Join-Path -Path $BackupDir -ChildPath ( $CKL.Path.Replace($CKLDirectory,""))
+    $NewPathDir = Split-Path -Path $NewFullPath -Parent
+    if (-not (Test-Path -Path $NewPathDir)) {
+        New-Item -Path $NewPathDir -ItemType Directory | Out-Null
     }
-    Move-Item -Path $CKL.Path -Destination (Join-Path -Path $BackupDir -ChildPath $FileName)
+    Move-Item -Path $CKL.Path -Destination $NewFullPath
 
     #Overwrite CKL
     Export-StigCKL -CKLData $TemplateCKL -Path $CKL.Path
