@@ -27,7 +27,7 @@ if (-not $MachineName.Contains(".")) {
 }
 $IP = (@()+(Resolve-DnsName -Name $MachineName -Type A).IPAddress)[0]
 $Mac = Invoke-Command -Session $Session -ScriptBlock {(@()+(Get-NetAdapter | Where-Object {$_.Status -eq "Up" -and $_.Name.Contains("Ethernet")}).MacAddress)[0]}
-Set-CKLHostData -CKLData $CKLData -Host $MachineName -FQDN $FQDN -IP $IP -Mac $Mac
+Set-CKLHostData -CKLData $CKLData -Host $MachineName -AutoFill
 
 #Start with Begin.ps1
 $BeginData = $null

@@ -682,7 +682,7 @@ function Export-StigCKL
     #Add Host data if requested
     if ($AddHostData)
     {
-        Set-CKLHostData -CKLData $CKLData
+        Set-CKLHostData -CKLData $CKLData -AutoFill
     }
     $XMLWriter = [System.XML.XMLTextWriter]::Create($Path, $XMLSettings)
     #Save the data
@@ -724,7 +724,8 @@ function Get-CKLHostData
     Param([Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData)
     #Return PSObject of the host info
     return New-Object -TypeName PSObject -Property @{HostName=$CKLData.CHECKLIST.ASSET.HOST_NAME; HostIP=$CKLData.CHECKLIST.ASSET.HOST_IP;
-        HostMAC=$CKLData.CHECKLIST.ASSET.HOST_MAC;HostGUID=$CKLData.CHECKLIST.ASSET.HOST_GUID;HostFQDN=$CKLData.CHECKLIST.ASSET.HOST_FQDN}
+        HostMAC=$CKLData.CHECKLIST.ASSET.HOST_MAC;HostGUID=$CKLData.CHECKLIST.ASSET.HOST_GUID;HostFQDN=$CKLData.CHECKLIST.ASSET.HOST_FQDN;
+        Role=$CKLData.CHECKLIST.ASSET.ROLE}
 }
 
 <#
@@ -822,7 +823,7 @@ function Set-VulnCheckResultFromRegistry
     IP address of the host
   
 .EXAMPLE
-    Set-CKLHostData -CKLData $CKLData
+    Set-CKLHostData -CKLData $CKLData -AutoFill
 
 .EXAMPLE
     Set-CKLHostData -CKLData $CKLData -Host "SomeMachine" -FQDN "SomeMachine.Some.Domain.com" -Mac "00-00-00-..." -IP "127.0.0.1"
@@ -832,16 +833,59 @@ function Set-CKLHostData
     Param
     (
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData,
-        [string]$Host=(Get-WmiObject -Class Win32_ComputerSystem).Name,
-        [string]$FQDN=(Get-WmiObject -Class Win32_ComputerSystem).Name+(Get-WmiObject -Class Win32_ComputerSystem).Domain,
-        [string]$Mac=(@()+(Get-WMIObject win32_networkadapterconfiguration | Where-Object -FilterScript {$_.IPAddress -ne $null}))[0].Macaddress,
-        [string]$IP=(@()+(Get-WMIObject win32_networkadapterconfiguration | Where-Object -FilterScript {$_.IPAddress -ne $null}))[0].IPAddress[0]
+        $Host,
+        $FQDN,
+        $Mac,
+        $IP,
+        [ValidateSet("None",
+            "Workstation",
+            "Member Server",
+            "Domain Controller",$null)]$Role,
+        [switch]$AutoFill
     )
+    if ($AutoFill) {
+        if ($Host -eq $null) {
+            $Host = (Get-WmiObject -Class Win32_ComputerSystem).Name
+        }
+        if ($FQDN -eq $null) {
+            $FQDN = (Get-WmiObject -Class Win32_ComputerSystem -ComputerName $Host).Name+(Get-WmiObject -Class Win32_ComputerSystem -ComputerName $Host).Domain
+        }
+        if ($Mac -eq $null) {
+            $Mac = (@()+(Get-WMIObject win32_networkadapterconfiguration -ComputerName $Host | Where-Object -FilterScript {$_.IPAddress -ne $null}))[0].Macaddress
+        }
+        if ($IP -eq $null) {
+            $IP = (@()+(Get-WMIObject win32_networkadapterconfiguration -ComputerName $Host | Where-Object -FilterScript {$_.IPAddress -ne $null}))[0].IPAddress[0]
+        }
+        if ($Role -eq $null) {
+            $Role = "None"
+            $PType = (Get-WmiObject -Class Win32_OperatingSystem -Property ProductType).ProductType
+            if ($PType -eq 1) {
+                $Role = "Workstation"
+            }
+            if ($PType -eq 3) {
+                $Role = "Member Server"
+            }
+            if ($PType -eq 2) {
+                $Role = "Domain Controller"
+            }
+        }
+    }
     #Set the various properties
-    $CKLData.CHECKLIST.ASSET.HOST_FQDN = $FQDN
-    $CKLData.CHECKLIST.ASSET.HOST_IP = $IP
-    $CKLData.CHECKLIST.ASSET.HOST_MAC = $Mac
-    $CKLData.CHECKLIST.ASSET.HOST_NAME = $Host
+    if ($Host -ne $null) {
+        $CKLData.CHECKLIST.ASSET.HOST_NAME = $Host
+    }
+    if ($FQDN -ne $null) {
+        $CKLData.CHECKLIST.ASSET.HOST_FQDN = $FQDN
+    }
+    if ($IP -ne $null) {
+        $CKLData.CHECKLIST.ASSET.HOST_IP = $IP
+    }
+    if ($Mac -ne $null) {
+        $CKLData.CHECKLIST.ASSET.HOST_MAC = $Mac
+    }
+    if ($Role -ne $null) {
+        $CKLData.CHECKLIST.ASSET.ROLE = $Role
+    }
 }
 
 <#
@@ -896,7 +940,7 @@ function Merge-CKLData
     #Copy over host info
     if (-not $DontCopyHostInfo) {
         $HostInfo = Get-CKLHostData -CKLData $SourceCKL
-        Set-CKLHostData -CKLData $DestinationCKL -Host $HostInfo.HostName -FQDN $HostInfo.HostFQDN -Mac $HostInfo.HostMAC -IP $HostInfo.HostIP
+        Set-CKLHostData -CKLData $DestinationCKL -Host $HostInfo.HostName -FQDN $HostInfo.HostFQDN -Mac $HostInfo.HostMAC -IP $HostInfo.HostIP -Role $HostInfo.Role
     }
     Write-Progress -Activity "Merging" -PercentComplete 100 -Completed
 }
@@ -1184,6 +1228,7 @@ function Get-XCCDFHostData
     $HostMAC = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:mac"}).'#text')[0]
     $HostFQDN = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:fqdn"}).'#text')[0]
     $HostGUID = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:guid"}).'#text')[0]
+    #XCCDF Does not have a role field
     #Return host info
     return (New-Object -TypeName PSObject -Property @{HostName=$HostName;HostIP=$HostIP;HostMac=$HostMAC;HostFQDN=$HostFQDN;HostGUID=$HostGUID})
 }
