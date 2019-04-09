@@ -26,5 +26,6 @@ This repository is split into two folders, these folder follow the following str
 
 [Microsoft PowerStig](https://github.com/Microsoft/PowerStig)
 PowerShell modules that utilize DSC to enforce STIG compliance.
+
 [Matt Preston's PowerStigScan](https://github.com/mapresto/PowerStigScan)
 PowerShell module that utilizes PowerStig to scan resources using DSC.
