@@ -12,7 +12,7 @@ $Comments = ""
 $Result = "Not_Reviewed"
 
 #Perform necessary check
-$Details = "There are files with loadFromRemoteSources. See comments for list."
+$Details = "There are files with loadFromRemoteSources. See comments for list, if applocker is utilized then this can be set to NAF"
 $Found = $false;
 $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs

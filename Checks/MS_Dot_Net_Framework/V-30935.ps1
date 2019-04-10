@@ -9,30 +9,33 @@ Param($BeginData)
 Write-Verbose "V-30935"
 $Details = ""
 $Comments = ""
-$Result = "Not_Reviewed"
+$Result = "NotAFinding"
 
 #Perform necessary check
-$subresult = Test-Path "HKLM:\SOFTWARE\Microsoft\.NETFramework\";
-if ($subresult)
-{    
-    $subresult = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\.NETFramework\").AllowStrongNameBypass;
-    if ($subresult -eq 1 -or $subresult -eq $null)
-    {
-        $Details = "AllowStrongNameBypass either does not exist or is set to 1"
-        $Result="Open"
+$KeysToCheck = @("HKLM:\SOFTWARE\Microsoft\.NETFramework\", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\")
+foreach ($Key in $KeysToCheck) {
+    $subresult = Test-Path $Key;
+    if ($subresult)
+    {    
+        $subresult = (Get-ItemProperty -Path $Key -ErrorAction SilentlyContinue).AllowStrongNameBypass;
+        if ($subresult -eq 1 -or $subresult -eq $null)
+        {
+            $Details += "AllowStrongNameBypass either does not exist or is set to '1' for $Key `r`n"
+            $Result = "Open"
+        }
+        else
+        {
+            $Details += "AllowStrongNameBypass exists and is set to $($subresult.ToString()) for $Key `r`n"
+        }
     }
     else
     {
-        $Details = "AllowStrongNameBypass exists and is set to $($subresult.ToString())"
-        $Result = "NotAFinding"
+        $Details = ".NET not installed? $Key does not exist `r`n"
+        if ($Result -ne "Open") {
+            $Result = "Not_Reviewed"
+        }
     }
 }
-else
-{
-    $Details = "dot net not installed? HKLM:\SOFTWARE\Microsoft\.NETFramework\ does not exist"
-    $Result = "NotAFinding"
-}
-
 #Return results
 return @{Details=$Details;
         Comments=$Comments;

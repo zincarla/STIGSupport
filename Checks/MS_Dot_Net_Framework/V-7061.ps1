@@ -11,30 +11,38 @@ Write-Verbose "V-7061"
 $Details = "The following matches were found:"
 $Comments = ""
 $Result = "NotAFinding"
-$Found = $false
+$IssueFound = $false
+#Attach HKEY_USERS to powershell for use
+New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+#Grab root key of all users on machine
+$usrs = Get-ChildItem "HKU:\";
 foreach ($usr in $usrs)
 {
     if (Test-Path ("HKU:\"+$usr.PSChildName+"\Software\Microsoft\Windows\CurrentVersion\WinTrust\Trust Providers\Software Publishing\"))
     {
-        try
+        $regresult = Get-ItemProperty -Path ("HKU:\"+$usr.PSChildName+"\Software\Microsoft\Windows\CurrentVersion\WinTrust\Trust Providers\Software Publishing\") -Name "State" -ErrorAction SilentlyContinue
+        if ($regresult -eq $null) {
+            $IssueFound =$true
+            $Comments +="`r`nNo State property for "+$usr.PSChildName
+        }
+        elseif ($regresult.State -eq 146432) #0x23C00
         {
-            $regresult = ( Get-ItemProperty -Path ("HKU:\"+$usr.PSChildName+"\Software\Microsoft\Windows\CurrentVersion\WinTrust\Trust Providers\Software Publishing\") -Name "State" -ErrorAction SilentlyContinue).State;
-            if ($regresult -band 160 -ne 0)#160 = Bits 6 and 8
-            {
-                $Found= $true;
-                $Details +="`r`nBit match on "+$usr.PSChildName
-            }
-        } catch{}
+            $Comments +="`r`nValue match on "+$usr.PSChildName
+        }
+    } else {
+        $IssueFound
+        $Comments += "`r`n$($usr.PSChildName) is missing the Software Publishing Key"
     }
 }
-if (-not $Found)
+if (-not $IssueFound)
 {
-    $Details = "No users were found with the incorrect bits set."
+    $Details = "All users have the correct setting set."
     $Result = "NotAFinding"
 }
 else
 {
     $Result = "Open"
+    $Details = "Issues found. See comments for list."
 }
 
 #Return results

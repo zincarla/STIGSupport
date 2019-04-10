@@ -12,12 +12,16 @@ $Comments = ""
 $Result = "Not_Reviewed"
 
 #Perform necessary check
-$Details = "There are files with legacy security. See comments for list."
+$Details = "There are files with legacy security. See comments for list. For these files, the previous .Net STIG is required, manual review required."
 $Found = $false;
 $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
+    if ((Get-Item -Path $File).Name -eq "caspol.exe.config") {
+        #Specifically exempted, so skip to next item in foreach loop
+        continue
+    }
     $subresult = (Get-Content $file) -match '(?i)NetFx40_LegacySecurityPolicy\s*enabled\s*=\s*"true"(?-i)';#match NetFx40_LegacySecurityPolicy enabled="true"
     if ($subresult)
     {
@@ -30,10 +34,7 @@ if (-not $Found)
     $Details = "No files were found with legacy security enabled."
     $Result = "NotAFinding"
 }
-else
-{
-    $Result = "Open"
-}
+#Otherwise leave as Not_Reviewed as check becomes documentation
 
 #Return results
 return @{Details=$Details;
