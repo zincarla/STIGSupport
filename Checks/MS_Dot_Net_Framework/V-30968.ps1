@@ -12,7 +12,7 @@ $Comments = ""
 $Result = "Not_Reviewed"
 
 #Perform necessary check
-$Details = "There are files with loadFromRemoteSources. See comments for list, if applocker is utilized then this can be set to NAF"
+$Details = "There are files with loadFromRemoteSources. See comments for list."
 $Found = $false;
 $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
@@ -32,7 +32,15 @@ if (-not $Found)
 }
 else
 {
-    $Result = "Open"
+    $AppLockerEnforcement = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2\Exe" -Name "EnforcementMode" -ErrorAction SilentlyContinue
+    if ($AppLockerEnforcement -ne $null -and $AppLockerEnforcement -eq 1) {
+        $Result="NotAFinding"
+        $Details += " However AppLocker rules are enabled."
+    }
+    else
+    {
+        $Result = "Open"
+    }
 }
 
 #Return results
