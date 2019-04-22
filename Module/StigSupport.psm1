@@ -679,14 +679,18 @@ function Export-StigCKL
     $XMLSettings.Indent = $true;
     $XMLSettings.IndentChars = "`t"
     $XMLSettings.NewLineChars="`n"
+    $XMLSettings.Encoding = New-Object -TypeName System.Text.UTF8Encoding -ArgumentList @($false)
+    $XMLSettings.ConformanceLevel = [System.Xml.ConformanceLevel]::Document
+
     #Add Host data if requested
     if ($AddHostData)
     {
         Set-CKLHostData -CKLData $CKLData -AutoFill
     }
-    $XMLWriter = [System.XML.XMLTextWriter]::Create($Path, $XMLSettings)
+    $XMLWriter = [System.XML.XmlWriter]::Create($Path, $XMLSettings)
     #Save the data
     $CKLData.Save($XMLWriter)
+    $XMLWriter.Flush()
     $XMLWriter.Dispose();
 }
 
@@ -1084,7 +1088,7 @@ function Get-StigMetrics
 function Import-XCCDF
 {
     Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$Path)
-    return [XML](Get-Content -Path $Path)
+    return [XML](Get-Content -Encoding UTF8 -Path $Path)
 }
 
 <#
@@ -1415,7 +1419,7 @@ function Convert-ManualXCCDFToCKL {
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_MAC" -Text ""
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "HOST_FQDN" -Text ""
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "TECH_AREA" -Text ""
-    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "TARGET_KEY" -Text ""
+    Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "TARGET_KEY" -Text ($XCCDFData[0].Rule.Reference.Identifier)
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_OR_DATABASE" -Text "false"
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_DB_SITE" -Text ""
     Add-XMLTextNode -RootDocument $ToSave -ParentNode $AssetNode -Name "WEB_DB_INSTANCE" -Text ""
