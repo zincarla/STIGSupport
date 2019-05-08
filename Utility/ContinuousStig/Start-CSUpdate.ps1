@@ -196,19 +196,77 @@ if (-not (Test-Path $ResultsPath)) {
     New-Item -Path $ResultsPath -ItemType Directory | Out-Null
 }
 
+function Start-ScapProcess {
+    Param($FilePath,$ArgumentList,[switch]$PrintOut,[switch]$PrintError)
+    # Quick note here, you must use asynch on all but one output stream when using process to avoid deadlock
+    # https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.redirectstandardoutput
+    $Process = New-Object -TypeName System.Diagnostics.Process
+    $Process.StartInfo.FileName = $FilePath
+    $Process.StartInfo.Arguments = $ArgumentList
+    $Process.StartInfo.RedirectStandardOutput = $true
+    $Process.StartInfo.RedirectStandardError = $true
+    $Process.StartInfo.UseShellExecute = $false
+    $Process.StartInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    $ErrEventScript = {
+        if ($EventArgs.Data -ne $null -and -not [string]::IsNullOrWhiteSpace($EventArgs.Data)) {
+            Write-Warning "Scap Error: $($EventArgs.Data)"
+        }
+    }
+    $ErrEvent = Register-ObjectEvent -InputObject $Process -Action $ErrEventScript -EventName 'ErrorDataReceived'
+    $Process.Start() | Out-Null
+
+    if ($PrintError) {
+        $Process.BeginErrorReadLine()
+    }
+    while (-not $Process.HasExited) {
+        $NextLine = ""
+        
+        if (-not $Process.StandardOutput.EndOfStream){
+            $NextLine = $Process.StandardOutput.ReadLine()
+            if ($PrintOut) {
+                Write-Host $NextLine
+            }
+        }
+        if ($NextLine -match "Processing Rule : \((\d+) of (\d+)\).*") {
+            Write-Progress -Activity "Scap Scan" -Status "Scanning ($($Matches[1]) / $($Matches[2]))" -PercentComplete (($Matches[1]/$Matches[2])*100)
+        }
+    }
+    Write-Progress -Activity "Scap Scan" -PercentComplete 100 -Completed
+    Unregister-Event -SourceIdentifier $ErrEvent.Name #Cleanup
+    $Process.Dispose()
+}
+
 Write-Host "Starting SCAP Scan Cycle"
 #This bit could be better I imagine. Right now, it clears SCAP tool of content, then adds content, scans, removes content, one at a time
+$PreviousScapContent = $null
 for ($Index =0; $Index -lt $CKLCache.Length; $Index++) {
     #We skip the SCAP scan if this CKL does not have matching SCAP content
     if ($CKLCache[$Index].ScapMapping.SCAP -ne "" -and $CKLCache[$Index].ScapMapping.SCAP -ne $null) {
         Write-Host "Scanning $($CKLCache[$Index].Host) for $($CKLCache[$Index].ID)"
 
         #Prepare CSCC
-        Start-Process -FilePath $ScapTool -ArgumentList @("-ua") -Wait #Remove all SCAP Content
-        Start-Process -FilePath $ScapTool -ArgumentList @("-iv", $CKLCache[$Index].ScapMapping.SCAP) -Wait #Install Content
-        Start-Process -FilePath $ScapTool -ArgumentList @("-ea") -Wait #Enable Content
+        if ($PreviousScapContent -eq $null -or $PreviousScapContent -ne $CKLCache[$Index].ScapMapping.SCAP) {
+            Write-Host "`tPreparing Scap Tool"
+            Write-Progress -Activity "Preparing Scap" -Status "Preparing (0/3)" -PercentComplete ((0/3)*100)
+            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-ua") -PrintError #Remove all SCAP Content
+            Write-Progress -Activity "Preparing Scap" -Status "Preparing (1/3)" -PercentComplete ((1/3)*100)
+
+            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-iv", $CKLCache[$Index].ScapMapping.SCAP) -PrintError #Install Content
+            Write-Progress -Activity "Preparing Scap" -Status "Preparing (2/3)" -PercentComplete ((2/3)*100)
+
+            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-ea") -PrintError #Enable Content
+            Write-Progress -Activity "Preparing Scap" -Status "Preparing (3/3)" -Completed
+
+
+            $PreviousScapContent = $CKLCache[$Index].ScapMapping.SCAP
+        }
         #Scan
-        Start-Process -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) -Wait #Scan target
+        Write-Host "`tPerforming Scan"
+        if (Test-Connection $CKLCache[$Index].Host) {
+            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) #Scan target
+        } else {
+            Write-Warning "Could not connect to $($CKLCache[$Index].Host)"
+        }
         #Get Results and cache
         $ResultFile = @()+( Get-ChildItem -Path $ResultsPath -Filter "$($CKLCache[$Index].Host)*XCCDF-Results*$($CKLCache[$Index].ID)*.xml" -Recurse -ErrorAction SilentlyContinue)
         if ($ResultFile.Length -eq 1) {
@@ -281,6 +339,7 @@ foreach ($CKL in $CKLCache) {
     }
 
     #Merge Previous CKL to results
+    Write-Host "`tMerging CKL"
     Merge-CKLData -SourceCKL $OldCKL -DestinationCKL $TemplateCKL
 
     if ($SetNROnChange) {
@@ -292,6 +351,7 @@ foreach ($CKL in $CKLCache) {
 
     #Merge Result to Template
     if ($ResultXCCDF -ne $null) {
+        Write-Host "`tMerging XCCDF"
         Merge-XCCDFToCKL -CKLData $TemplateCKL -XCCDF $ResultXCCDF -NoCommentsOnOpen
     }
     

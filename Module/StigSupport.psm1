@@ -921,22 +921,27 @@ function Merge-CKLData
     #Get the stig results form the source
     Write-Progress -Activity "Merging" -CurrentOperation "Loading old results"
     $StigResults = Get-VulnCheckResult -CKLData $SourceCKL
+    $DestinationIDs = (Get-VulnCheckResult -CKLData $DestinationCKL).VulnID
     $I=0;
     Write-Progress -Activity "Merging" -CurrentOperation "Writing results" -PercentComplete (($I*100)/$StigResults.Length)
     #Import them into the destination
     foreach ($Result in $StigResults)
     {
-        if ($Result.Status -ne "Not_Reviewed" -or $IncludeNR) {
-            if ($DontOverwriteVulns) {
-                $PrevResult = Get-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID
-                if ($PrevResult -eq $null -or $PrevResult.Status -eq "Not_Reviewed") {
+        if ($DestinationIDs.Contains($Result.VulnID)) {
+            if ($Result.Status -ne "Not_Reviewed" -or $IncludeNR) {
+                if ($DontOverwriteVulns) {
+                    $PrevResult = Get-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID
+                    if ($PrevResult -eq $null -or $PrevResult.Status -eq "Not_Reviewed") {
+                        Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
+                    }
+                }
+                else
+                {
                     Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
                 }
             }
-            else
-            {
-                Set-VulnCheckResult -CKLData $DestinationCKL -VulnID $Result.VulnID -Details $Result.Finding -Comments $Result.Comments -Result $Result.Status
-            }
+        } else {
+            Write-Warning "$($Result.VulnID) does not exist in the destination. Maybe removed in a newer version?"
         }
         $I++;
         Write-Progress -Activity "Merging" -PercentComplete (($I*100)/$StigResults.Length)
@@ -1167,15 +1172,15 @@ function Merge-XCCDFToCKL
         $Comments = "Checked by SCAP tool"
         
         if ($NoCommentsOnOpen) {
-            $PrevResult = $PrevResults | Where-Object {$_.RuleID -eq $Result.idref}
-            if ($PrevResult.Status -ne "NotAFinding") {
+            $PrevResult = $PrevResults | Where-Object {$_.RuleID -eq $Result.RuleID}
+            if ($PrevResult -ne $null -and $PrevResult.Status -ne "NotAFinding") {
                 $Details = $PrevResult.Finding
                 $Comments = $PrevResult.Comments
             }
         }
 
         #Set it in the CKL
-        Set-VulnCheckResult -CKLData $CKLData -RuleID $Result.RuleID -Result $Res -Details  $Details -Comments $Comments
+        Set-VulnCheckResult -CKLData $CKLData -RuleID $Result.RuleID -Result $Res -Details $Details -Comments $Comments
         $I++;
         Write-Progress -Activity "Importing" -PercentComplete (($I*100)/$Results.Count)
     }
