@@ -263,7 +263,7 @@ for ($Index =0; $Index -lt $CKLCache.Length; $Index++) {
         #Scan
         Write-Host "`tPerforming Scan"
         if (Test-Connection $CKLCache[$Index].Host) {
-            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) #Scan target
+            Start-ScapProcess -FilePath $ScapTool -ArgumentList @("-h",$CKLCache[$Index].Host,"-u",$ResultsPath) -PrintError #Scan target
         } else {
             Write-Warning "Could not connect to $($CKLCache[$Index].Host)"
         }
