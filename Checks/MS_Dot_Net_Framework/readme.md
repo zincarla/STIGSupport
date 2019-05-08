@@ -2,4 +2,4 @@
 
 This check built for:
 - Microsoft DotNet Framework 4.0 STIG
-- Release: 6 Benchmark Date: 26 Oct 2018
+- Release: 7 Benchmark Date: 26 Apr 2019
