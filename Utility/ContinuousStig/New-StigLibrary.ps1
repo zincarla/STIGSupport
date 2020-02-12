@@ -74,7 +74,7 @@ if (-not $Auto) {
     Write-Host "Using automatic search for STIG library"
     #Loop through the urls and try to find the latest library if not already provided
     while ($true) {
-        $URL = "http://iasecontent.disa.mil/stigs/zip/Compilations/U_SRG-STIG_Library_$($AutoDate.Year)_$($AutoDate.ToString("MM")).zip"
+        $URL = "https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_SRG-STIG_Library_$($AutoDate.Year)_$($AutoDate.ToString("MM")).zip"
         Write-Host "Attempt $($AutoRetryCount+1) : $URL"
         try {
             $Trash = Invoke-WebRequest -Uri $URL -OutFile $ZipPath -ErrorAction Stop

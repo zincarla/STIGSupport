@@ -27,9 +27,15 @@ $ManualFiles = Get-ChildItem -Path $SubLibraryPath -Filter "*manual-xccdf.xml" -
 $MappingTable = @{}
 foreach ($ManualFile in $ManualFiles) {
     $ManualXCCDF = Import-XCCDF -Path $ManualFile.FullName
-    $ManualData = Get-XCCDFInfo -XCCDF $ManualXCCDF
-    if ($ManualData.Title -ne $null -and $ManualData.Title -ne "" -and -not $MappingTable.ContainsKey($ManualData.Title) -and $ManualData.ID -ne $null -and $ManualData.ID -ne "") {
-        $MappingTable += @{$ManualData.Title=New-Object -TypeName PSObject -Property @{SCAP=""; Manual=$ManualFile.Name.Replace(".","\."); ID=$ManualData.ID}}
+    if ($ManualXCCDF) {
+        $ManualData = Get-XCCDFInfo -XCCDF $ManualXCCDF
+        if ($ManualData.Title -ne $null -and $ManualData.Title -ne "" -and -not $MappingTable.ContainsKey($ManualData.Title) -and $ManualData.ID -ne $null -and $ManualData.ID -ne "") {
+            $MappingTable += @{$ManualData.Title=New-Object -TypeName PSObject -Property @{SCAP=""; Manual=$ManualFile.Name.Replace(".","\."); ID=$ManualData.ID}}
+        } else {
+            Write-Verbose "Skipping $($ManualFile.FullName) as it did not have required info"
+        }
+    } else {
+        Write-Warning "Skipping $($ManualFile.FullName) as it could not be loaded"
     }
 }
 

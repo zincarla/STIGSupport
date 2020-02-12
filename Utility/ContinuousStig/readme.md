@@ -8,7 +8,7 @@ This part of the repo is still being developed. The end goal is to have a script
 
 ## Start-CSUpdate
 This script will use a SCAP Content directory, CKL directory, and the latest STIG library to:
-. SCAP scan hosts based on data within the pre-exinsting CKL files (Optional)
+. SCAP scan hosts based on data within the pre-existing CKL files (Optional)
 . Merge old CKL results into new CKL generated from the latest STIG
 . Merge SCAP results to that if SCAP results exists
 . Report on checks that still require manual attention

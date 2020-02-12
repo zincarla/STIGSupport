@@ -69,7 +69,7 @@ $Report = ""
 $LibraryPath = "$Staging\Library"
 $SubLibraryPath = $LibraryPath+"\STIGS"
 $MappingPath = (Join-Path -Path $ScapRepository -ChildPath "ScapMappings.json")
-$BackupDir = (Join-Path -Path $CKLDirectory -ChildPath "Backups-$(Get-Date -Format "yyyy-MM-dd")")
+$BackupDir = (Join-Path -Path $CKLDirectory -ChildPath "Backups-$(Get-Date -Format "yyyy-MM-dd HH-mm-ss")")
 #Cache some file data
 $ScapFiles = Get-ChildItem -Path $ScapRepository -Filter "*Benchmark.xml" -Recurse
 $ManualFiles = Get-ChildItem -Path $SubLibraryPath -Filter "*manual-xccdf.xml" -Recurse
@@ -155,11 +155,14 @@ for ($I =0; $I -lt $ScapMappings.Count; $I++) {
             $ScapMappings[$I].SCAP = $MatchingScapFiles[0].FullName
         }
     }
+    Write-Progress -Activity "Verifying SCAP Mappings" -PercentComplete ($I*100/$ScapMappings.Count)
 }
+Write-Progress -Activity "Verifying SCAP Mappings" -Completed
 
 Write-Host "Caching CKL Metadata"
 #Cache CKL Data
 $CKLCache = @() #@{ID = $CKLI.ID; Path=$File.FullName; Host = $HostName; ScapMapping=$MatchingScap; SCAPResultPath}
+$I=0;
 foreach ($File in $CKLFiles) {
     #Load CKL File
     $CKLData = Import-StigCKL -Path $File.FullName
@@ -185,7 +188,12 @@ foreach ($File in $CKLFiles) {
         $Report += $MatchingScap[0].ToString()+"::"+$CKLI.ID+"`r`n"
         $CKLsSkipped ++;
     }
+    
+    Write-Progress -Activity "Caching CKL Metadata" -PercentComplete ($I*100/$CKLFiles.Count)
+    $I++;
 }
+Write-Progress -Activity "Caching CKL Metadata" -Completed
+
 $Report += "$($CKLCache.Length) previous CKLs found with another $CKLsSkipped skipped.`r`n"
 
 #Scan Targets using SCAP
@@ -281,24 +289,33 @@ for ($Index =0; $Index -lt $CKLCache.Length; $Index++) {
             Write-Warning "Results not found for $($CKLCache[$Index].Host) on $($CKLCache[$Index].ID)"
         }
     }
+    Write-Progress -Activity "SCAP Scanning" -PercentComplete ($Index*100/$CKLCache.Length)
 }
+Write-Progress -Activity "SCAP Scanning" -Completed
+
 
 #Grab required Manual XCCDFs and convert them to CKLS
 Write-Host "Preparing template CKL files"
 $BlankCKLTable = @{}
+$I=0;
 foreach($CKL in $CKLCache) {
     if (-not $BlankCKLTable.ContainsKey($CKL.ID) -and $CKL.ScapMapping.Manual -ne "" -and $CKL.ScapMapping.Manual -ne $null) {
         #Convert to CKL
         Convert-ManualXCCDFToCKL -XCCDFPath $CKL.ScapMapping.Manual -SaveLocation $CKL.ScapMapping.Manual.Replace(".xml", ".ckl")
         $BlankCKLTable += @{$CKL.ID=$CKL.ScapMapping.Manual.Replace(".xml", ".ckl")}
     }
+    Write-Progress -Activity "Preparing template CKL files" -PercentComplete ($I*100/$CKLCache.Length)
+    $I++;
 }
+Write-Progress -Activity "Preparing template CKL files" -Completed
+
 
 #Merge Results
 #Create Backup
 if (-not (Test-Path $BackupDir)) {
     New-Item -Path $BackupDir -ItemType Directory | Out-Null
 }
+$I=0
 foreach ($CKL in $CKLCache) {
     Write-Host "Merging results for $($CKL.Host) :: $($CKL.ID)"
     #Load Result
@@ -345,7 +362,7 @@ foreach ($CKL in $CKLCache) {
     if ($SetNROnChange) {
         #Set any results that changed to NR
         foreach ($Change in $CKLChanges) {
-            Set-VulnCheckResult -CKLData $TemplateCKL -Result Not_Reviewed
+            Set-VulnCheckResult -CKLData $TemplateCKL -Result Not_Reviewed -VulnID $Change
         }
     }
 
@@ -362,7 +379,11 @@ foreach ($CKL in $CKLCache) {
     if (-not (Test-Path -Path $NewPathDir)) {
         New-Item -Path $NewPathDir -ItemType Directory | Out-Null
     }
-    Move-Item -Path $CKL.Path -Destination $NewFullPath
+    try {
+        Move-Item -Path $CKL.Path -Destination $NewFullPath -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not backup $($CKL.Path)" #Downgrade this to a warning
+    }
 
     #Overwrite CKL
     Export-StigCKL -CKLData $TemplateCKL -Path $CKL.Path
@@ -378,7 +399,11 @@ foreach ($CKL in $CKLCache) {
     } elseif ($Opens -ne 0) {
         $Report+="Result: $($CKL.Path) has $Opens open`r`n"
     }
+    Write-Progress -Activity "Merging CKLs" -Id 1 -PercentComplete ($I*100/$CKLCache.Length)
+    $I++
 }
+Write-Progress -Activity "Merging CKLs" -Id 1 -Completed
+
 
 #Metrics and end
 $TotalTime = ([DateTime]::Now - $StartTime).TotalMinutes
