@@ -86,13 +86,13 @@ if (-not $Auto) {
             #404
             if ($E.ToString().Contains("404") -or $E.ToString().Contains("Not found") -or $E.ToString().Contains("403") -or $E.ToString().Contains("Forbidden")) {
                 if ($AutoRetryCount -gt 5) {
-                    Write-Error "Failed to download library, 404"
+                    Write-Error "Failed to download library, 404, please specify the direct path to the latest library"
                     exit 1
                 }
                 $AutoDate = $AutoDate.AddMonths(-1)
                 $AutoRetryCount++
             } else {
-                Write-Error "Failed to download new library"
+                Write-Error "Failed to download new library, $E"
                 exit 1
             }
         }
