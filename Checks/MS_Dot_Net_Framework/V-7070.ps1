@@ -19,7 +19,7 @@ $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
     $Content = (Get-Content $file)
-    $subresult = $Content -match '(?i)typefilterlevel\s*=\s*"full"(?-i)';#match typefilterleve ="full"
+    $subresult = $Content -match '(?i)typefilterlevel\s*=\s*"full"(?-i)';#match typefilterlevel ="full"
     $subresult2 = $Content -match '(?i)<\s*channel[\w\s="]*ref\s*=\s*"http\s?(server)?"(?-i)';#match <channel ref="http server"
     $subresult3 = $Content -match '(?i)<\s*channel[\w\s="]*port\s*=\s*"443"[\w\s="]*ref\s*=\s*"http\s?(server)?"(?-i)';#match <channel port="443" ref="http server"
     $subresult4 = $Content -match '(?i)<\s*channel[\w\s="]*ref\s*=\s*"http\s?(server)?"[\w\s="]*port\s*=\s*"443"(?-i)';#match <channel ref="http server" port="443"

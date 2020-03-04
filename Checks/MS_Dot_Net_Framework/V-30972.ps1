@@ -29,7 +29,7 @@ foreach($file in $FullFileList)
 }
 if (-not $Found)
 {
-    $Details = "No files were found with legacy security enabled."
+    $Details = "No files were found with defaultProxy node."
     $Result = "NotAFinding"
 }
 

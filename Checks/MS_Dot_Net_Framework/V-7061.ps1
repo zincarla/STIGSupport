@@ -30,7 +30,7 @@ foreach ($usr in $usrs)
             $Comments +="`r`nValue match on "+$usr.PSChildName
         }
     } else {
-        $IssueFound
+        $IssueFound=$true
         $Comments += "`r`n$($usr.PSChildName) is missing the Software Publishing Key"
     }
 }
