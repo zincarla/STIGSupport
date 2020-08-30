@@ -61,14 +61,6 @@ Open | Total | NotAFinding | UniqueTotal | NotApplicable | Category | NotReviewe
 0 | 0 | 0 | 0 | 0 | Cat3 | 0
 25 | 200 | 75 | 200 | 25 | Cat2 | 75
 
-## Export-POAMData.ps1
-
-Script will run through a target directory and build a collection of CKL files. From there it will parse them and find all checks that are set to Open or Not Reviewed and add each to an object. End result is a CSV file that can be used to copy and paste bulk POA&M data into a provided template.
-
-```powershell
-&"Export-POAMData.ps1" -CKLDirectory <path to desired CKLs> -SavePath <Desired path and filename.csv>
-```
-
 ## Convert-ToNewCKLVersion.ps1
 
 Attempts to convert a checklist in 1.x version to a compatible 2.6 version checklist. This has had limited testing and may not work, but is worth a shot.
@@ -79,4 +71,4 @@ Attempts to convert a checklist in 1.x version to a compatible 2.6 version check
 
 ## ContinuousSTIG
 
-This directory contains a set of scripts that facilitate an automatic review of CKL files. When used, this should auomatically run SCAP scans based on targets in pre-existing CKL files, merge the old CKLs with update CKLs and then merge the SCAP results into those. The intended effect is that this takes care of most of the work in maintaining an up-to-date CKL repository. More documentation in the folder.
+This directory contains a set of scripts that facilitate an automatic review of CKL files. When used, this should automatically run SCAP scans based on targets in pre-existing CKL files, merge the old CKLs with update CKLs and then merge the SCAP results into those. The intended effect is that this takes care of most of the work in maintaining an up-to-date CKL repository. More documentation in the folder.

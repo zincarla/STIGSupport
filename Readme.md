@@ -17,10 +17,13 @@ Set-VulnCheckResult -CKLData $CKLData -VulnID "V-11111" -Details "Not set correc
 Export-StigCKL -CKLData $CKLData -Path "C:\CKLs\MyCKL.ckl"
 ```
 
-This repository is split into two folders, these folder follow the following structure:
+This repository is split into three sections:
 
 - Module: Module required for all scripts
 - Utility: Misc. utilities to facilitate work with CKL files. View the readme under the utility folder for more information.
+- Checks: Utility to automatically perform checks and fill out CKL files
+
+For more information on each section, please review that section's readme file.
 
 ## Alternate Resources
 
