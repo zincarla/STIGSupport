@@ -3,7 +3,7 @@
     Grabs metrics per service for multiple checklists
 
 .DESCRIPTION
-    Generates high-level metrics on checklist by service. Note that your directory must be in a specific format. All checklists located in a child of the part folder are counted as one service
+    Generates high-level metrics on checklist by service. Note that your directory must be in a specific format. All checklists located in a child of the parent folder are counted as one service
 
 .PARAMETER CKLDirectoryPath
     Parent of the service directories. Example structure
