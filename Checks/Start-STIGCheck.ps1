@@ -16,6 +16,9 @@
 
 .PARAMETER InitObject
     A check-specific initialization object, maybe a site in IIS, or other variable that cannot be automatically determined by the checks
+
+.PARAMETER SkipChecks
+    An array of checks to skip, usefull if you need to skip checks that take an exceptionally long time
   
 .EXAMPLE
     Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl"
@@ -25,8 +28,11 @@
 
 .EXAMPLE
     Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl" -IncludeNR
+
+.EXAMPLE
+    Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl" -SkipChecks @("V-123456","V-123457")
 #>
-Param($MachineName="localhost",[Parameter(Mandatory=$true)]$CKL,[Parameter(Mandatory=$true)]$CheckDirectory,$SavePath=$CKL,$InitObject=$null)
+Param($MachineName="localhost",[Parameter(Mandatory=$true)]$CKL,[Parameter(Mandatory=$true)]$CheckDirectory,$SavePath=$CKL,$InitObject=$null,$SkipChecks)
 
 #Metrics
 $StartTime = Get-Date
@@ -46,6 +52,10 @@ if (-not (Test-Path $StigDir)) {
     return
 }
 
+#Ensure SkipChecks is an array
+if ($SkipChecks -ne $null) {
+    $SkipChecks = @()+$SkipChecks
+}
 
 $Session = New-PSSession -ComputerName $MachineName -EnableNetworkAccess
 
@@ -83,6 +93,10 @@ $Checks = Get-ChildItem -Path $StigDir -Filter "*.ps1" -File | Where-Object {$_.
 $ValidResults = @("Open", "NotAFinding","Not_Reviewed","Not_Applicable")
 $QuickConversions = @{"NotReviewed"="Not_Reviewed";"NR"="Not_Reviewed";"NotApplicable"="Not_Applicable";"NA"="Not_Applicable";"O"="Open";"Closed"="NotAFinding"}
 foreach ($Check in $Checks) {
+    if ($SkipChecks.Contains($Check.Name)){
+        Write-Host "Skipping $($Check.Name)"
+        continue
+    }
     Write-Host "Running $($Check.Name)"
     $CheckTime = Get-Date
     $Result = Invoke-Command -Session $Session -FilePath $Check.FullName -ArgumentList @($BeginData)
