@@ -1,4 +1,4 @@
-Param($MachineName="localhost",[Parameter(Mandatory=$true)]$CKL,[Parameter(Mandatory=$true)]$CheckDirectory,$SavePath=$CKL)
+Param($MachineName="localhost",[Parameter(Mandatory=$true)]$CKL,[Parameter(Mandatory=$true)]$CheckDirectory,$SavePath=$CKL,$InitObject=$null)
 
 #Metrics
 $StartTime = Get-Date
@@ -18,7 +18,14 @@ if (-not (Test-Path $StigDir)) {
     return
 }
 
+
 $Session = New-PSSession -ComputerName $MachineName -EnableNetworkAccess
+
+if (-not $Session) {
+    Write-Host "-=Metrics=-"
+    Write-Host "This script cancelled in $(((Get-Date) - $StartTime).TotalMinutes) minutes"
+    return
+}
 
 #Add host data
 $FQDN = $MachineName
@@ -34,12 +41,13 @@ $BeginData = $null
 if (Test-Path (Join-Path -Path $StigDir -ChildPath "begin.ps1")) {
     Write-Host "Running begin.ps1"
     $CheckTime = Get-Date
-    $BeginData = Invoke-Command -Session $Session -FilePath (Join-Path -Path $StigDir -ChildPath "begin.ps1")
+    $BeginData = Invoke-Command -Session $Session -FilePath (Join-Path -Path $StigDir -ChildPath "begin.ps1") -ArgumentList @($InitObject)
     Write-Verbose "begin.ps1 took $(((Get-Date)-$CheckTime).TotalSeconds) seconds to complete"
     if ($BeginData.IsApplicable -eq $false) {
         Write-Host "The begin.ps1 script says that $($CKLMetadata.ID) is not applicable to $MachineName"
         return
     }
+    Write-Verbose ($BeginData|Out-String)
 }
 
 #Run through the checks
