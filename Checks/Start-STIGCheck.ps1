@@ -1,3 +1,31 @@
+<#
+.SYNOPSIS
+    Scans a specified machine using scripts provided in the checks folder specified. Sort of like SCAP but with PowerShell and saves directly to the CKL format.
+
+.PARAMETER MachineName
+    The machine to scan for STIG results
+
+.PARAMETER CKL
+    The CKL file that needs to be filled
+
+.PARAMETER CheckDirectory
+    Path to where the STIG check scripts are stored, usually .\STIGSUPPORT\Checks
+  
+.PARAMETER SavePath
+    Full path to save the filled CKL to
+
+.PARAMETER InitObject
+    A check-specific initialization object, maybe a site in IIS, or other variable that cannot be automatically determined by the checks
+  
+.EXAMPLE
+    Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl"
+
+.EXAMPLE
+    Merge-CKLs -DestinationCKLFile "C:\CKLS\ManualChecks.ckl" -DestinationCKLFile "C:\CKLS\ScapResults.ckl" -SaveFilePath "C:\CKLS\MergedChecks.ckl" -DontCopyHostInfo -DontOverwriteVulns
+
+.EXAMPLE
+    Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl" -IncludeNR
+#>
 Param($MachineName="localhost",[Parameter(Mandatory=$true)]$CKL,[Parameter(Mandatory=$true)]$CheckDirectory,$SavePath=$CKL,$InitObject=$null)
 
 #Metrics
