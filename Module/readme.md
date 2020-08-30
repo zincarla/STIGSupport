@@ -65,14 +65,10 @@ Get-CKLVulnInformation [-CKLData] <XmlDocument> [<CommonParameters>]
 
 ### Get-StigInfoAttribute
 
-
-Get-StigInfoAttribute [-CKLData] <xml> [-Attribute] <Object> [<CommonParameters>]
-
+Gets a stig info attribute
 
 ```powershell
-syntaxItem
-----------
-{@{name=Get-StigInfoAttribute; CommonParameters=True; WorkflowCommonParameters=False; parameter=System.Object[]}}
+Get-StigInfoAttribute [-CKLData] <xml> [-Attribute] <Object> [<CommonParameters>]
 ```
 
 ### Get-StigMetrics
@@ -159,14 +155,10 @@ Get-XCCDFVulnInformation [-XCCDF] <XmlDocument> [-Full] [<CommonParameters>]
 
 ### Import-CCIList
 
-
-Import-CCIList [-Path] <string> [<CommonParameters>]
-
+Imports the CCIList XML from DISA
 
 ```powershell
-syntaxItem
-----------
-{@{name=Import-CCIList; CommonParameters=True; WorkflowCommonParameters=False; parameter=System.Object[]}}
+Import-CCIList [-Path] <string> [<CommonParameters>]
 ```
 
 ### Import-StigCKL
@@ -179,14 +171,10 @@ Import-StigCKL [-Path] <String> [<CommonParameters>]
 
 ### Import-XCCDF
 
-
-Import-XCCDF [-Path] <string> [<CommonParameters>]
-
+Load an XCCDF file into a [xml]
 
 ```powershell
-syntaxItem
-----------
-{@{name=Import-XCCDF; CommonParameters=True; WorkflowCommonParameters=False; parameter=System.Object[]}}
+Import-XCCDF [-Path] <string> [<CommonParameters>]
 ```
 
 ### Merge-CKLData
