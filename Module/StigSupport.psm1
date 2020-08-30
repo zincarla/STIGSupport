@@ -645,7 +645,7 @@ function Get-VulnInformation
 function Import-StigCKL
 {
     Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$Path)
-    return [XML](Get-Content -Path $Path)
+    return [XML](Get-Content -Path $Path -Encoding UTF8)
 }
 
 <#
@@ -980,20 +980,22 @@ function Merge-CKLs
         [Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$DestinationCKLFile,
         [Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$SourceCKLFile,
         [Parameter(Mandatory=$true)][string]$SaveFilePath,
-        [switch]$IncludeNR
+        [switch]$IncludeNR,
+        [switch]$DontCopyHostInfo,
+        [switch]$DontOverwriteVulns
     )
     #Load both inputs
     $DestinationCKL = Import-StigCKL -Path $DestinationCKLFile
     $SourceCKL = Import-StigCKL -Path $SourceCKLFile
     #Merge 'em
-    Merge-CKLData -SourceCKL $SourceCKL -DestinationCKL $DestinationCKL -IncludeNR:$IncludeNR
+    Merge-CKLData -SourceCKL $SourceCKL -DestinationCKL $DestinationCKL -IncludeNR:$IncludeNR -DontCopyHostInfo:$DontCopyHostInfo -DontOverwriteVulns:$DontOverwriteVulns
     #Save output
     Export-StigCKL -CKLData $DestinationCKL -Path $SaveFilePath
 }
 
 <#
 .SYNOPSIS
-    Returns a complex object of metrics on the statuses of the checks.
+    Returns a complex object of metrics on the statuses of the checks in a directory of checklists, or a checklist
 
 .PARAMETER CKLDirectory
     Path to folder container the ckls to pull metrics on
@@ -1003,9 +1005,14 @@ function Merge-CKLs
 #>
 function Get-StigMetrics
 {
-    Param($CKLDirectory)
-    #AllChecklists
-    $CKFiles = Get-ChildItem -Path $CKLDirectory -Filter "*.ckl" -Recurse
+    Param([Alias("CKLDirectory")]$Path)
+
+    if ((Get-Item $Path) -is [system.io.fileinfo] -and $Path -like "*.ckl") {
+        $CKFiles = @()+(Get-Item $Path)
+    } else {
+        #AllChecklists
+        $CKFiles = Get-ChildItem -Path $Path -Filter "*.ckl" -Recurse
+    }
     $IndividualStigs = @{}
     $Open = 0
     $NAF = 0
