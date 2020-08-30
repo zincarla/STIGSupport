@@ -15,14 +15,7 @@
     "Convert-ToNewCKLVersion.ps1" -Source 'C:\CKLs\MyChecklist.ckl' -Destination 'C:\CKLs\UpgradedMyChecklist.ckl'
 #>
 Param($Source, $Destination)
-if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -le 0)
-{
-    #End if not
-    Write-Error "Please import StigSupport.psm1 before running this script"
-    return
-}
-$Content = Get-Content -Path $Source -Raw
+$Content = Get-Content -Path $Source -Raw -Encoding UTF8
 $Content = $Content.Replace("<STIG_INFO>","<STIGS><iSTIG><STIG_INFO>").Replace("</CHECKLIST>","</iSTIG></STIGS></CHECKLIST>")
 $Content = $Content -replace "<SV_VERSION>DISA STIG Viewer : .*</SV_VERSION>",""
-$Content | Out-File $Destination
-Repair-StigCKL -Path $Destination
+$Content | Out-File $Destination -Encoding utf8
