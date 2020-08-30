@@ -12,7 +12,7 @@
     Path to where the STIG check scripts are stored, usually .\STIGSUPPORT\Checks
   
 .PARAMETER SavePath
-    Full path to save the filled CKL to
+    Full path to save the filled CKL to, if specified this will not overwrite CKL, if not, CKL will be overwritten by default
 
 .PARAMETER InitObject
     A check-specific initialization object, maybe a site in IIS, or other variable that cannot be automatically determined by the checks
