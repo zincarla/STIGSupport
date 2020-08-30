@@ -967,8 +967,17 @@ function Merge-CKLData
 .PARAMETER IncludeNR
     If this is set, Items marks at "Not_Reviewed" will overwrite the destination, otherwise only answered items are merged
   
+.PARAMETER DontCopyHostInfo
+    Does not overwrite desination's host data
+
+.PARAMETER DontOverwriteVulns
+    Does not overwrite desination's vuln findings. Result is only Not_Reviewed checks are filled.
+  
 .EXAMPLE
     Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl"
+
+.EXAMPLE
+    Merge-CKLs -DestinationCKLFile "C:\CKLS\ManualChecks.ckl" -DestinationCKLFile "C:\CKLS\ScapResults.ckl" -SaveFilePath "C:\CKLS\MergedChecks.ckl" -DontCopyHostInfo -DontOverwriteVulns
 
 .EXAMPLE
     Merge-CKLs -DestinationCKLFile "C:\CKLS\Blank.ckl" -DestinationCKLFile "C:\CKLS\Answered.ckl" -SaveFilePath "C:\CKLS\Merged.ckl" -IncludeNR
