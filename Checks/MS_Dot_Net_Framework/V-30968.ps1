@@ -18,11 +18,13 @@ $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
-    $subresult = (Get-Content $file) -match '(?i)<loadFromRemoteSources[\w\s="]*enabled\s*=\s*"true"(?-i)';#match <loadFromRemoteSources enabled="true"
-    if ($subresult)
-    {
-        $found=$true
-        $Comments += "`r`n"+$file
+    if (Test-Path -Path $file) {
+        $subresult = (Get-Content -Path $file -Raw) -match '(?i)<loadFromRemoteSources[\w\s="]*enabled\s*=\s*"true"(?-i)';#match <loadFromRemoteSources enabled="true"
+        if ($subresult)
+        {
+            $found=$true
+            $Comments += "`r`n"+$file
+        }
     }
 }
 if (-not $Found)
@@ -32,7 +34,7 @@ if (-not $Found)
 }
 else
 {
-    $AppLockerEnforcement = Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2\Exe" -Name "EnforcementMode" -ErrorAction SilentlyContinue
+    $AppLockerEnforcement = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2\Exe" -Name "EnforcementMode" -ErrorAction SilentlyContinue).EnforcementMode
     if ($AppLockerEnforcement -ne $null -and $AppLockerEnforcement -eq 1) {
         $Result="NotAFinding"
         $Details += " However AppLocker rules are enabled."

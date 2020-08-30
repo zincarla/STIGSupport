@@ -18,15 +18,18 @@ $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
-    if ((Get-Item -Path $File).Name -eq "caspol.exe.config") {
-        #Specifically exempted, so skip to next item in foreach loop
-        continue
-    }
-    $subresult = (Get-Content $file) -match '(?i)NetFx40_LegacySecurityPolicy\s*enabled\s*=\s*"true"(?-i)';#match NetFx40_LegacySecurityPolicy enabled="true"
-    if ($subresult)
-    {
-        $found=$true
-        $Comments += "`r`n"+$file
+    if (Test-Path -Path $File) {
+        if ((Get-Item -Path $File).Name -eq "caspol.exe.config") {
+            #Specifically exempted, so skip to next item in foreach loop
+            continue
+        }
+    
+        $subresult = (Get-Content -Path $file -Raw) -match '(?i)NetFx40_LegacySecurityPolicy\s*enabled\s*=\s*"true"(?-i)';#match NetFx40_LegacySecurityPolicy enabled="true"
+        if ($subresult)
+        {
+            $found=$true
+            $Comments += "`r`n"+$file
+        }
     }
 }
 if (-not $Found)

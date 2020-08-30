@@ -18,11 +18,13 @@ $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
-    $subresult = (Get-Content $file) -match '(?i)<enforceFIPSPolicy[\w\s="]*enabled\s*=\s*"false"(?-i)';#match <enforceFIPSPolicy enabled="false"
-    if ($subresult)
-    {
-        $Comments+="`r`n"+$File
-        $Found = $true;
+    if (Test-Path -Path $file) {
+        $subresult = (Get-Content -Path $file -Raw) -match '(?i)<enforceFIPSPolicy[\w\s="]*enabled\s*=\s*"false"(?-i)';#match <enforceFIPSPolicy enabled="false"
+        if ($subresult)
+        {
+            $Comments+="`r`n"+$File
+            $Found = $true;
+        }
     }
 }
 if (-not $Found)

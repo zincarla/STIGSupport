@@ -18,13 +18,15 @@ $FullFileList = @()+$BeginData.EXEConfigs
 $FullFileList += $BeginData.MachineConfigs
 foreach($file in $FullFileList)
 {
-    $subresult = (Get-Content $file) -match '(?i)<\s*defaultProxy(?-i)';#match <defaultProxy. Too complex for further matching. Manual check required
-    if ($subresult)
-    {
-        $found=$true
-        $Comments += "`r`n"+$file
-        $Comments += "`r`n"+([XML](Get-Content $file)).configuration.'system.net'.defaultProxy.OuterXml.ToString()
-        $Comments += "`r`n"
+    if (Test-Path -Path $file){
+        $subresult = (Get-Content -Path $file -Raw) -match '(?i)<\s*defaultProxy(?-i)';#match <defaultProxy. Too complex for further matching. Manual check required
+        if ($subresult)
+        {
+            $found=$true
+            $Comments += "`r`n"+$file
+            $Comments += "`r`n"+([XML](Get-Content $file)).configuration.'system.net'.defaultProxy.OuterXml.ToString()
+            $Comments += "`r`n"
+        }
     }
 }
 if (-not $Found)
