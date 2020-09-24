@@ -93,7 +93,7 @@ $Checks = Get-ChildItem -Path $StigDir -Filter "*.ps1" -File | Where-Object {$_.
 $ValidResults = @("Open", "NotAFinding","Not_Reviewed","Not_Applicable")
 $QuickConversions = @{"NotReviewed"="Not_Reviewed";"NR"="Not_Reviewed";"NotApplicable"="Not_Applicable";"NA"="Not_Applicable";"O"="Open";"Closed"="NotAFinding"}
 foreach ($Check in $Checks) {
-    if ($SkipChecks.Contains($Check.Name)){
+    if ($SkipChecks -contains $Check.Name -or ($Check.Name.Length -gt 4 -and $SkipChecks -contains ($Check.Name.Substring(0,$Check.Name.Length-4)))){
         Write-Host "Skipping $($Check.Name)"
         continue
     }
