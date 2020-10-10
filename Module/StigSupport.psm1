@@ -408,7 +408,7 @@ function Get-VulnIDs
     Data as return from the Import-StigCKL
   
 .EXAMPLE
-    Get-StigAttributeList -CKLData $CKLData
+    Get-VulnAttributeList -CKLData $CKLData
 #>
 function Get-VulnAttributeList
 {
@@ -452,9 +452,9 @@ function Set-VulnCheckResult
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData,
         $VulnID=$null, 
         $RuleID=$null,
-        $Details=$null, 
+        [Alias("Finding")]$Details=$null, 
         $Comments=$null,
-        [Parameter(Mandatory=$true)][ValidateSet(“Open”,”NotAFinding”,"Not_Reviewed", "Not_Applicable")]$Result
+        [Alias("Status")][Parameter(Mandatory=$true)][ValidateSet(“Open”,”NotAFinding”,"Not_Reviewed", "Not_Applicable")]$Result
     )
     #If we have what we need
     if ($VulnID -ne $null -or $RuleID -ne $null)
@@ -502,6 +502,9 @@ function Set-VulnCheckResult
 
 .PARAMETER RuleID
     Rule_ID of the Vuln to Get
+
+.PARAMETER NoAliases
+    To help align function outputs and inputs, aliases are added. This will prevent aliases from being added to output
   
 .EXAMPLE
     Get-VulnCheckResult -CKLData $CKLData -VulnID "V-11111"
@@ -512,7 +515,8 @@ function Get-VulnCheckResult
     (
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData,
         $VulnID=$null, 
-        $RuleID=$null
+        $RuleID=$null,
+        [switch]$NoAliases
     )
     #Pre set what we will return
     $Status, $Finding, $Comments = ""
@@ -528,7 +532,12 @@ function Get-VulnCheckResult
             $VulnID = Get-VulnInfoAttribute -CKLData $CKLData -RuleID $RuleID -Attribute "Vuln_Num"
         }
         #Return it as a new object
-        return (New-Object -TypeName PSObject -Property @{Status=$Status;Finding=$Finding;Comments=$Comments; VulnID=$VulnID})
+        $ToReturn = New-Object -TypeName PSObject -Property @{Status=$Status;Finding=$Finding;Comments=$Comments; VulnID=$VulnID}
+        if (-not $NoAliases) {
+            Add-Member -InputObject $ToReturn -MemberType AliasProperty -Name "Details" -Value "Finding" -SecondValue System.String
+            Add-Member -InputObject $ToReturn -MemberType AliasProperty -Name "Result" -Value "Status" -SecondValue System.String
+        }
+        return $ToReturn
     }
     else
     {
@@ -541,7 +550,13 @@ function Get-VulnCheckResult
             $Status = Get-VulnFindingAttribute -CKLData $CKLData -VulnID $VulnID -Attribute "STATUS"
             $Finding = Get-VulnFindingAttribute -CKLData $CKLData -VulnID $VulnID  -Attribute "FINDING_DETAILS"
             $Comments = Get-VulnFindingAttribute -CKLData $CKLData -VulnID $VulnID  -Attribute "COMMENTS"
-            $ToReturn += New-Object -TypeName PSObject -Property @{Status=""+$Status;Finding=""+$Finding;Comments=""+$Comments; VulnID=""+$VulnID}
+            $ToAdd = New-Object -TypeName PSObject -Property @{Status=""+$Status;Finding=""+$Finding;Comments=""+$Comments; VulnID=""+$VulnID}
+            if (-not $NoAliases) {
+                Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name "Details" -Value "Finding" -SecondValue System.String
+                Add-Member -InputObject $ToAdd -MemberType AliasProperty -Name "Result" -Value "Status" -SecondValue System.String
+            }
+
+            $ToReturn += $ToAdd
         }
         return $ToReturn
     }
@@ -672,7 +687,8 @@ function Export-StigCKL
     Param
     (
         [Alias("XMLData")][Parameter(Mandatory=$true, ValueFromPipeline = $true)][XML]$CKLData, 
-        [Parameter(Mandatory=$true)][string]$Path, [switch]$AddHostData
+        [Parameter(Mandatory=$true)][string]$Path,
+        [switch]$AddHostData
     )
     #Set XML Options to replicate those of the STIG Viewer application
     $XMLSettings = New-Object -TypeName System.XML.XMLWriterSettings
@@ -825,6 +841,21 @@ function Set-VulnCheckResultFromRegistry
 
 .PARAMETER IP
     IP address of the host
+
+.PARAMETER TargetComments
+    TargetComments of the host
+
+.PARAMETER TargetCommentsFromAD
+    Fills target comments from the machines AD description, if exists and found.
+
+.PARAMETER IsWebOrDB
+    Manually selects the Web or DB STIG setting. This is auto-set to true if webdbsite or webdbinstance is provided while this is $null
+
+.PARAMETER WebDBSite
+    Sets the web or db site STIG for the CKL. Will autoset IsWebOrDB to true if this is provided and IsWebOrDB is not.
+
+.PARAMTER WebDBInstance
+    Sets the web or db instance STIG for the CKL. Will autoset IsWebOrDB to true if this is provided and IsWebOrDB is not.
   
 .EXAMPLE
     Set-CKLHostData -CKLData $CKLData -AutoFill
@@ -841,11 +872,19 @@ function Set-CKLHostData
         $FQDN,
         $Mac,
         $IP,
+        $TargetComments,
+        $WebDBSite,
+        $WebDBInstance,
+        [ValidateSet("true",
+            "false",
+            $true,
+            $false,$null)]$IsWebOrDB,
         [ValidateSet("None",
             "Workstation",
             "Member Server",
             "Domain Controller",$null)]$Role,
-        [switch]$AutoFill
+        [switch]$AutoFill,
+        [switch]$TargetCommentsFromAD
     )
     if ($AutoFill) {
         if ($Host -eq $null) {
@@ -874,6 +913,12 @@ function Set-CKLHostData
             }
         }
     }
+    if ($TargetCommentsFromAD -and $TargetComments -eq $null) {
+        $ComputerData = Get-ADComputer -Identity $Computer -Properties Description -ErrorAction SilentlyContinue
+        if ($ComputerData -ne $null) {
+            $TargetComments = $ComputerData.Description
+        }
+    }
     #Set the various properties
     if ($Host -ne $null) {
         $CKLData.CHECKLIST.ASSET.HOST_NAME = $Host
@@ -889,6 +934,20 @@ function Set-CKLHostData
     }
     if ($Role -ne $null) {
         $CKLData.CHECKLIST.ASSET.ROLE = $Role
+    }
+    if ($TargetComments -ne $null) {
+        $CKLData.CHECKLIST.ASSET.TARGET_COMMENT = $TargetComments
+    }
+    if ($IsWebOrDB -eq $null -and ($WebDBSite -ne $null -or $WebDBInstance -ne $null)) {
+        $CKLData.CHECKLIST.ASSET.WEB_OR_DATABASE = "true"
+    } elseif ($IsWebOrDB -ne $null) {
+        $CKLData.CHECKLIST.ASSET.WEB_OR_DATABASE = $IsWebOrDB.ToString().ToLower()
+    }
+    if ($WebDBSite -ne $null) {
+        $CKLData.CHECKLIST.ASSET.WEB_DB_SITE = $WebDBSite
+    }
+    if ($WebDBInstance -ne $null) {
+        $CKLData.CHECKLIST.ASSET.WEB_DB_INSTANCE = $WebDBInstance
     }
 }
 
