@@ -55,6 +55,8 @@ if (-not (Test-Path $StigDir)) {
 #Ensure SkipChecks is an array
 if ($SkipChecks -ne $null) {
     $SkipChecks = @()+$SkipChecks
+} else {
+    $SkipChecks = @()
 }
 
 $Session = New-PSSession -ComputerName $MachineName -EnableNetworkAccess
