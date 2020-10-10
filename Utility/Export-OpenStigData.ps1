@@ -17,7 +17,7 @@
 .EXAMPLE
     "Export-OpenStigData.ps1" -CKLDirectory 'C:\CKLs\' -SavePath 'C:\CKLs\OpenChecks.csv'
 #>
-Param([Parameter(Mandatory=$true)]$CKLDirectory,[Parameter(Mandatory=$true)]$SavePath,[switch]$SeperateDuplicates)
+Param([Parameter(Mandatory=$true)]$CKLDirectory,[Parameter(Mandatory=$true)]$SavePath,[switch]$SeperateDuplicates,[switch]$Recurse)
 #Check if module imported
 if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -le 0)
 {
@@ -27,7 +27,7 @@ if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -l
 }
 
 #List all CKL Files
-$CKLs = Get-ChildItem -Path $CKLDirectory -Filter "*.ckl"
+$CKLs = Get-ChildItem -Path $CKLDirectory -Filter "*.ckl" -Recurse:$Recurse
 
 #Initialize Results
 $STIGData = @()
