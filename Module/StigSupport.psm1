@@ -1296,25 +1296,101 @@ function Merge-XCCDFHostDataToCKL
 
 .PARAMETER XCCDF
     XCCDF data as loaded from the Import-XCCDF
-  
+
+.PARAMETER Filter
+    If provided, this will be used to select a specific IP/MAC pair from the XCCDF file. Consider filtering on interface_name, ipv4 or mac and check for nulls
+
 .EXAMPLE
     Get-XCCDFHostData -XCCDF $XCCDFData
+
+.EXAMPLE
+    Get-XCCDFHostData -XCCDF $XCCDFData -Filter {$_.ipv4 -ne $null -and $_.ipv4 -like "192.133.*"}
 #>
 function Get-XCCDFHostData
 {
-    Param([Parameter(Mandatory=$true)][xml]$XCCDF)
+    Param([Parameter(Mandatory=$true)][xml]$XCCDF, [scriptblock]$Filter)
 
-    #Pre fill variables
+    #Init variables with empty string
     $HostName, $HostIP, $HostMAC, $HostGUID, $HostFQDN = ""
     #Load info
+    $Facts = Get-XCCDFTargetFacts -XCCDF $XCCDF
     $HostName = $XCCDF.Benchmark.TestResult.target
-    $HostIP = (@()+$XCCDF.Benchmark.TestResult.'target-address')[0]
-    $HostMAC = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:mac"}).'#text')[0]
-    $HostFQDN = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:fqdn"}).'#text')[0]
-    $HostGUID = (@()+($XCCDF.Benchmark.TestResult.'target-facts'.fact | Where-Object {$_.name -eq "urn:scap:fact:asset:identifier:guid"}).'#text')[0]
-    #XCCDF Does not have a role field
+    $HostFQDN = $Facts.FQDN
+    $HostGUID = $Facts.GUID
+
+    if ($Filter -eq $null) {
+        #If no filter provided, we use first target-address for the host info
+        $HostIP = (@()+($XCCDF.Benchmark.TestResult.'target-address' | Where-Object -FilterScript {$_ -ne $null -and $_ -ne ""}))[0] #Grab first IP, that is not blank, from targets
+        $HostMAC = $Facts.Interfaces | Where-Object -FilterScript {$_.IPv4 -eq $HostIP} #Try and get matching MAC for the specified IP
+        if ($HostMAC -ne $null -and $HostMAC.MAC -ne $null -and $HostMAC.MAC -ne "") {
+            $HostMAC = $HostMAC.MAC #If we succeed, ensure we return the MAC itself
+        } elseif($Facts.Interfaces.Length -gt 0) {
+            #If we fail, default to old style of grabing first available MAC, even if it does not match ip, from the XCCDF file
+            $HostMAC = $Facts.Interfaces[0].Mac
+        }
+    } else {
+        #If we have a filter, use that to select the IP and MAC reported
+        $SelectedInterface=(@()+($Facts.Interfaces | Where-Object -FilterScript:$Filter))
+        if ($SelectedInterface.Length -eq 0) {
+            Write-Warning -Message "Filter did not match any interfaces. IP and MAC will be blank"
+        } else {
+            if ($SelectedInterface.Length -gt 1) {
+                Write-Warning -Message "Filter matched multiple interfaces, first interface matched will be used"
+            }
+            $HostIP = $SelectedInterface[0].ipv4
+            $HostMAC = $SelectedInterface[0].mac
+        }
+    }
+    #Note, XCCDF Does not have a role field, so it will not be filled
     #Return host info
     return (New-Object -TypeName PSObject -Property @{HostName=$HostName;HostIP=$HostIP;HostMac=$HostMAC;HostFQDN=$HostFQDN;HostGUID=$HostGUID})
+}
+
+<#
+.SYNOPSIS
+    Gets all target facts from an XCCDF
+
+.PARAMETER XCCDF
+    XCCDF data as loaded from the Import-XCCDF
+  
+.EXAMPLE
+    Get-XCCDFTargetFacts -XCCDF $XCCDFData
+#>
+function Get-XCCDFTargetFacts
+{
+    Param([Parameter(Mandatory=$true)][xml]$XCCDF)
+    #Pre fill variables
+    $ToReturn = New-Object -TypeName PSObject -Property @{Interfaces=@()}
+
+    #Grab all facts
+    $Facts = $XCCDF.Benchmark.TestResult.'target-facts'.fact
+    #Storage for interface data
+    $Interface = $null
+    #Loop through all facts
+    for ($I=0; $I -lt $Facts.Length; $I++) {
+        #If we hit an interface name
+        if ($Facts[$I].Name -eq "urn:scap:fact:asset:identifier:interface_name") {
+            if ($Interface -ne $null) {
+                #Add the current interface to the return object
+                $ToReturn.Interfaces+=$Interface
+            }
+            #Create a new empty interface
+            $Interface = New-Object -TypeName PSObject
+        }
+        #Add the new fact to the interface, if we are processsing interfaces, or directly to the return object otherwise
+        if ($Interface -ne $null) {
+            $Interface | Add-Member -Name $Facts[$I].Name.Replace("urn:scap:fact:asset:identifier:","") -MemberType NoteProperty -Value $Facts[$I]."#text"
+        } else {
+            $ToReturn | Add-Member -Name $Facts[$I].Name.Replace("urn:scap:fact:asset:identifier:","") -MemberType NoteProperty -Value $Facts[$I]."#text"
+        }
+    }
+    #Last interface still needs to be added if it exists
+    if ($Interface -ne $null) {
+        $ToReturn.Interfaces+=$Interface
+    }
+
+    #Return processed facts
+    return $ToReturn
 }
 
 <#
@@ -1673,4 +1749,4 @@ Export-ModuleMember -Function   Get-VulnInfoAttribute, Set-StigDataAttribute, Ge
                                 Merge-CKLData, Merge-CKLs, Import-XCCDF, Get-XCCDFResults, Merge-XCCDFToCKL, Merge-XCCDFHostDataToCKL, 
                                 Get-XCCDFHostData, Get-StigMetrics, Get-StigInfoAttribute, Get-XCCDFInfo, Get-XCCDFVulnInformation, 
                                 Get-CheckListInfo, Get-CKLVulnInformation, Import-CCIList, Get-CCIReferences, Get-CCIVulnReferences,
-                                Get-VulnInformation, Convert-ManualXCCDFToCKL;
+                                Get-VulnInformation, Convert-ManualXCCDFToCKL, Get-XCCDFTargetFacts;
