@@ -921,22 +921,22 @@ function Set-CKLHostData
     }
     #Set the various properties
     if ($Host -ne $null) {
-        $CKLData.CHECKLIST.ASSET.HOST_NAME = $Host
+        $CKLData.CHECKLIST.ASSET.HOST_NAME = $Host.ToString()
     }
     if ($FQDN -ne $null) {
-        $CKLData.CHECKLIST.ASSET.HOST_FQDN = $FQDN
+        $CKLData.CHECKLIST.ASSET.HOST_FQDN = $FQDN.ToString()
     }
     if ($IP -ne $null) {
-        $CKLData.CHECKLIST.ASSET.HOST_IP = $IP
+        $CKLData.CHECKLIST.ASSET.HOST_IP = $IP.ToString()
     }
     if ($Mac -ne $null) {
-        $CKLData.CHECKLIST.ASSET.HOST_MAC = $Mac
+        $CKLData.CHECKLIST.ASSET.HOST_MAC = $Mac.ToString()
     }
     if ($Role -ne $null) {
-        $CKLData.CHECKLIST.ASSET.ROLE = $Role
+        $CKLData.CHECKLIST.ASSET.ROLE = $Role.ToString()
     }
     if ($TargetComments -ne $null) {
-        $CKLData.CHECKLIST.ASSET.TARGET_COMMENT = $TargetComments
+        $CKLData.CHECKLIST.ASSET.TARGET_COMMENT = $TargetComments.ToString()
     }
     if ($IsWebOrDB -eq $null -and ($WebDBSite -ne $null -or $WebDBInstance -ne $null)) {
         $CKLData.CHECKLIST.ASSET.WEB_OR_DATABASE = "true"
@@ -944,10 +944,10 @@ function Set-CKLHostData
         $CKLData.CHECKLIST.ASSET.WEB_OR_DATABASE = $IsWebOrDB.ToString().ToLower()
     }
     if ($WebDBSite -ne $null) {
-        $CKLData.CHECKLIST.ASSET.WEB_DB_SITE = $WebDBSite
+        $CKLData.CHECKLIST.ASSET.WEB_DB_SITE = $WebDBSite.ToString()
     }
     if ($WebDBInstance -ne $null) {
-        $CKLData.CHECKLIST.ASSET.WEB_DB_INSTANCE = $WebDBInstance
+        $CKLData.CHECKLIST.ASSET.WEB_DB_INSTANCE = $WebDBInstance.ToString()
     }
 }
 
