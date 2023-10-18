@@ -454,7 +454,7 @@ function Set-VulnCheckResult
         $RuleID=$null,
         [Alias("Finding")]$Details=$null, 
         $Comments=$null,
-        [Alias("Status")][Parameter(Mandatory=$true)][ValidateSet(“Open”,”NotAFinding”,"Not_Reviewed", "Not_Applicable")]$Result
+        [Alias("Status")][Parameter(Mandatory=$true)][ValidateSet("Open","NotAFinding","Not_Reviewed", "Not_Applicable")]$Result
     )
     #If we have what we need
     if ($VulnID -ne $null -or $RuleID -ne $null)
