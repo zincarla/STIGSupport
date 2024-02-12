@@ -1,4 +1,4 @@
-# STIGCLKBSupport Documentation
+# STIGCKLBSupport Documentation
 
 There are two parts to this repository. First you have the StigCKLBSupport.psm1 powershell module. This contains all the code necessary for loading, and interacting with the CKLB files. Second, there is a folder called Utility, which contains scripts that utilize the module to perform more complex operations. All the scripts assume your powershell session has the module imported. Ensure you import it first!
 
