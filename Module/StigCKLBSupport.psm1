@@ -30,9 +30,10 @@ function Import-StigCKLBFile {
     $ToReturn = (Get-Content -Path $Path -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
     if ($ToReturn -eq $null) {
         throw "Invalid CKLB file."
-    } elseif ($ToReturn.cklb_version -ne "1.0") {
+    } elseif ($ToReturn.cklb_version -ne "1.0" -and $ToReturn.cklb_version -ne $null) {
         Write-Warning "This module is not confirmed to work with this CKLB file's version"
     }
+    return $ToReturn
 }
 
 <#
@@ -450,6 +451,12 @@ function Set-StigCKLBRuleFinding {
     }
     if ($OverrideSeverity -eq $null -and $OverrideSeverityJustification -ne $null) {
         throw "Severity Justification must be set in tandem with a Severity Override"
+    }
+    if ($OverrideSeverity -ne $null) {
+        $OverrideSeverity = $OverrideSeverity.ToLower()
+    }
+    if ($Status -ne $null) {
+        $Status = $Status.ToLower()
     }
 
     $SourceRule = $null
