@@ -799,8 +799,111 @@ function Merge-StigCKLBFiles {
 
 #endregion
 
+#region CCI Ref Functions
+<#
+.SYNOPSIS
+    Imports the CCIList XML from DISA
+
+.PARAMETER Path
+    Path to the CCIList XML
+
+.NOTES
+    Downloaded from https://public.cyber.mil/stigs/cci/
+  
+.EXAMPLE
+    Import-StigCCIList -Path "C:\Test\U_CCI_List.xml"
+#>
+function Import-StigCCIList
+{
+    Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$Path)
+    return [XML](Get-Content -Path $Path)
+}
+
+
+<#
+.SYNOPSIS
+    Gets the references for the specified CCI ID (Generally IA Control Policies)
+
+.PARAMETER CCIData
+    CCIList data as returned by Import-StigCCIList
+
+.PARAMETER CCIID
+    ID of the CCI to get the references for
+
+.EXAMPLE
+    Get-StigCCIReferences -CCIData $CCIData -CCIID "CCI-000001"
+#>
+function Get-StigCCIReferences
+{
+    Param([Parameter(Mandatory=$true)][xml]$CCIData, [Parameter(Mandatory=$true)][string]$CCIID)
+    $ToReturn = @()
+    $Definition = (Select-XML -Xml $CCIData -XPath "//*[local-name()='cci_item' and @id='$CCIID']").Node.definition
+    $Results = @()+(Select-XML -Xml $CCIData -XPath "//*[local-name()='cci_item' and @id='$CCIID']/*[local-name()='references']/*[local-name()='reference']").Node
+    foreach ($Result in $Results) {
+        $ToReturn += New-Object -TypeName PSObject -Property @{Title=$Result.Title; Version=$Result.Version; Index=$Result.Index; Location=$Result.Location; Definition=$Definition; CCIID=$CCIID}
+    }
+    #Return null on no results
+    if ($Results.Count -le 0) {
+        return $null
+    }
+    #Return table of
+    return $ToReturn
+}
+
+<#
+.SYNOPSIS
+    Gets the references for the specified CCI IDs associated with the specified VulnID
+
+.PARAMETER CCIData
+    CCIList data as returned by Import-StigCCIList
+
+.PARAMETER CKLBData
+    CKLData as loaded from the Import-StigCKLBFile function
+
+.PARAMETER VulnID
+    VulnID to get the references for (Do not use with RuleID)
+
+.PARAMETER RuleID
+    RuleID to get the references for (Do not use with VulnID)
+
+.EXAMPLE
+    Get-StigCKLBRuleCCIReferences -CCIData $CCIData -CKLBData $CKLBData -VulnID "V-11111"
+#>
+function Get-StigCKLBRuleCCIReferences {
+    Param
+    (
+        [Parameter(Mandatory=$true)][xml]$CCIData, 
+        [Parameter(Mandatory=$true, ValueFromPipeline = $true, ParameterSetName = 'Vuln')]
+        [Parameter(Mandatory=$true, ValueFromPipeline = $true, ParameterSetName = 'Rule')]
+        [ValidateScript({(Validate-StigCKLBParam -CKLBData $_)})]
+        $CKLBData,
+        [Parameter(Mandatory=$true, ParameterSetName = 'Rule')][string]$RuleID,
+        [Parameter(Mandatory=$true, ParameterSetName = 'Vuln')][string]$VulnID
+    )
+    $CCIDs = @()
+    if (-not [string]::IsNullOrWhiteSpace($RuleID)) {
+        $CCIDs+=(Get-StigCKLBRuleInfo -CKLBData $CKLBData -RuleID $RuleID).ccis
+    } elseif (-not [string]::IsNullOrWhiteSpace($VulnID)) {
+        $CCIDs+=(Get-StigCKLBRuleInfo -CKLBData $CKLBData -VulnID $VulnID).ccis
+    }
+    $Results = @()
+    $Keys = @()
+    foreach ($CCIID in $CCIDs) {
+        $SubResults = Get-StigCCIReferences -CCIData $CCIData -CCIID $CCIID
+        foreach ($Result in $SubResults) {
+            $Key = $Result.Title+$Result.Version+$Result.Index
+            if (-not $Keys.Contains($Key)) {
+                $Keys += $Key
+                $Results += $Result
+            }
+        }
+    }
+    return $Results
+}
+#endregion
+
 #Export members
 Export-ModuleMember -Function Import-StigCKLBFile, Export-StigCKLBFile, Set-StigCKLBTargetData, Get-StigCKLBTargetData, 
                               Get-StigCKLBStigAttribute, Get-StigCKLBStigInfo, Get-StigCKLBVulnIDs, Get-StigCKLBRuleIDs, 
                               Get-StigCKLBRuleInfo, Set-StigCKLBRuleFinding, Set-StigCKLBRuleStatusFromRegistry, Get-StigCKLBMetrics,
-                              Merge-StigCKLBData, Merge-StigCKLBFiles
+                              Merge-StigCKLBData, Merge-StigCKLBFiles, Import-StigCCIList, Get-StigCCIReferences, Get-StigCKLBRuleCCIReferences
