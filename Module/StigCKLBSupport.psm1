@@ -816,7 +816,7 @@ function Merge-StigCKLBFiles {
 function Import-StigCCIList
 {
     Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$Path)
-    return [XML](Get-Content -Path $Path)
+    return [XML](Get-Content -Path $Path -Encoding UTF8)
 }
 
 
