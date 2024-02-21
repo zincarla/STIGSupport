@@ -2,4 +2,6 @@
 
 This is the core module for this entire project. It provides the necessary functions to read and write CKLB files. This module can assist in automating checks, running metrics on CKLB files and merging checks from different CKLB files into one. 
 
-The core module should be complete in so far as it *should* read and write CKLB files. It is not at parity with the old V2 module as far as XCCDF, CCI, or additional scripts goes.
+# StigXCCDFSupport.psm1
+
+This is a secondary module that allows pulling some data from an XCCDF file as returned by a SCC scan. It also extends the StigCKLBSupport.psm1 by providing a couple functions to answer pre-created CKLB files with answers from an XCCDF file.

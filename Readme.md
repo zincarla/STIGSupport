@@ -1,14 +1,14 @@
 # STIGCKLBSupport Documentation
 
-There are two parts to this repository. First you have the StigCKLBSupport.psm1 powershell module. This contains all the code necessary for loading, and interacting with the CKLB files. Second, there is a folder called Utility, which contains scripts that utilize the module to perform more complex operations. All the scripts assume your powershell session has the module imported. Ensure you import it first!
+There are two parts to this repository. First you have the Module folder containing StigCKLBSupport.psm1 and StigXCCDFSupport.psm1 powershell modules. These contain the code necessary for loading, and interacting with the CKLB files and XCCDF files. Second, there is a folder called Utility, which contains scripts that utilize the module to perform more complex operations. 
 
-Several of the PowerShell functions require a checklist template. This is just an empty checklist file as saved from the DISA STIG viewer application. In order to work with a checklist, it needs to be loaded into memory first.
+Most of these functions require a checklist template. This is just an empty checklist file as saved from the DISA STIG viewer application. In order to work with a checklist, it needs to be loaded into memory first with `Import-StigCKLBFile`
 
 ## V3 upgrade status
 
-This repository is an updated project to support the new V3/JSON formatted CKLB files. This format change requires a major overhaul of this repository and it is currently not at parity with the old V2 module as far as XCCDF, CCI, or additional features goes, however the core module *should* be functional for CKLB operations.
+This repository is an updated project to support the new V3/JSON formatted CKLB files.
 
-There are several additional changes to be aware of. All functions have been renamed to  some form of `Verb-StigCKLB****`. This should allow importing the old and new modules together without conflict and makes the module more cohesive and hopefully predictable. Several functions that were involved in getting STIG Rule/Vuln attributes have all been merged under `Get-StigCKLBRuleInfo`. This won't work as a drop-in replacement for the old module due to all these changes and any relying scripts will also need work to function with this module.
+There are several changes to be aware of compared to the older module. All functions have been renamed to some form of `Verb-StigCKLB****` for functions in `StigCKLBSupport.psm1` and `Verb-StigXCCDF****` for functions in the `StigXCCDFSupport.psm1` module. This should allow importing the old and new modules together without conflict and makes the module more cohesive and hopefully predictable. Several functions that were involved in getting STIG Rule/Vuln attributes have all been merged under `Get-StigCKLBRuleInfo`. This won't work as a drop-in replacement for the old module due to all these changes and any relying scripts will also need work to function with this module.
 
 ## Example flow
 
