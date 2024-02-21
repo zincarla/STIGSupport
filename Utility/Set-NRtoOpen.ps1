@@ -14,10 +14,10 @@
 Param([Parameter(Mandatory=$true)][ValidateScript({Test-Path -Path $_})][string]$CKLBPath)
 
 #Check if module imported
-if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigSupport"}).Count -le 0)
+if ((Get-Module|Where-Object -FilterScript {$_.Name -eq "StigCKLBSupport"}).Count -le 0)
 {
     #End if not
-    Write-Error "Please import StigSupport.psm1 before running this script"
+    Write-Error "Please import StigCKLBSupport.psm1 before running this script"
     return
 }
 
